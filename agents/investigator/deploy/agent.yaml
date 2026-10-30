@@ -8,7 +8,7 @@ metadata:
   name: investigator
   namespace: tenant-test
 spec:
-  owner: aldmckay@gmail.com
+  owner: 4785437+X-McKay@users.noreply.github.com
   description: Read-only Kubernetes investigator for the zetra-poc-fixtures namespace
   identity:
     mode: on-behalf-of
