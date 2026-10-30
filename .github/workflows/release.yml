@@ -1,0 +1,93 @@
+# Release one agent: a tag `<agent>/v<version>` (or a manual run) builds the image, pushes
+# it by digest, signs it, attests the release digests, and publishes the artifacts Kubani
+# consumes as a GitHub release. The release is never approved here; approval is a Kubani PR.
+#
+# Repository settings this needs:
+#   secrets  REGISTRY_USERNAME, REGISTRY_PASSWORD   registry.almckay.io basic auth
+#            COSIGN_PRIVATE_KEY, COSIGN_PASSWORD    the organisation signing key
+#   vars     COSIGN_PUBLIC_KEY (optional)           verify after signing
+#            RELEASE_RUNNER (optional)              a self-hosted runner label when
+#                                                   GitHub-hosted runners cannot reach the registry
+#            AGENT_REGISTRY, COSIGN_TLOG_UPLOAD     overrides of the script defaults
+name: Release agent
+on:
+  push:
+    tags: ["*/v*"]
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: Agent directory under agents/
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ${{ vars.RELEASE_RUNNER || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+    env:
+      AGENT_REGISTRY: ${{ vars.AGENT_REGISTRY || 'registry.almckay.io/agents' }}
+      COSIGN_TLOG_UPLOAD: ${{ vars.COSIGN_TLOG_UPLOAD || 'false' }}
+      COSIGN_VERSION: v2.4.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.13.1"
+          python-version: "3.12.14"
+      - name: Resolve the agent
+        id: agent
+        env:
+          INPUT_AGENT: ${{ inputs.agent }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          agent="${INPUT_AGENT:-${REF_NAME%%/*}}"
+          [[ "$agent" =~ ^[a-z0-9-]+$ && -d "agents/$agent" ]] || { echo "unknown agent $agent" >&2; exit 1; }
+          echo "name=$agent" >> "$GITHUB_OUTPUT"
+      - name: Install cosign
+        run: |
+          base="https://github.com/sigstore/cosign/releases/download/$COSIGN_VERSION"
+          curl -fsSLo cosign "$base/cosign-linux-amd64"
+          curl -fsSLo cosign_checksums.txt "$base/cosign_checksums.txt"
+          grep ' cosign-linux-amd64$' cosign_checksums.txt | sed 's/cosign-linux-amd64/cosign/' | sha256sum -c -
+          sudo install -m 0755 cosign /usr/local/bin/cosign
+      - name: Registry login
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          echo "$REGISTRY_PASSWORD" | docker login "${AGENT_REGISTRY%%/*}" -u "$REGISTRY_USERNAME" --password-stdin
+          echo "$REGISTRY_PASSWORD" | cosign login "${AGENT_REGISTRY%%/*}" -u "$REGISTRY_USERNAME" --password-stdin
+      - name: Build, push, sign, attest
+        env:
+          COSIGN_KEY: env://COSIGN_PRIVATE_KEY
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_PUBLIC_KEY_PEM: ${{ vars.COSIGN_PUBLIC_KEY }}
+          REVISION: ${{ github.sha }}
+          AGENT: ${{ steps.agent.outputs.name }}
+        run: |
+          if [[ -n "$COSIGN_PUBLIC_KEY_PEM" ]]; then
+            printf '%s\n' "$COSIGN_PUBLIC_KEY_PEM" > "$RUNNER_TEMP/cosign.pub"
+            export COSIGN_PUBLIC_KEY="$RUNNER_TEMP/cosign.pub"
+          fi
+          scripts/release.sh "$AGENT"
+      - name: Publish the release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGENT: ${{ steps.agent.outputs.name }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          name=$(uv run --project tools --locked python -c \
+            'import json,sys; print(json.load(open(sys.argv[1]))["release"])' "dist/$AGENT/predicate.json")
+          tag="$REF_NAME"
+          [[ "$REF_TYPE" == "tag" ]] || tag="$AGENT/$name"
+          gh release create "$tag" dist/"$AGENT"/* --target "$GITHUB_SHA" \
+            --title "$name" \
+            --notes "Image: $(cat "dist/$AGENT/image"). Unapproved AgentRelease; copy agent.yaml and agentrelease.yaml into Kubani (see README)."
