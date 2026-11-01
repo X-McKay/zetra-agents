@@ -141,8 +141,8 @@ under `legacy/` is still the investigator that has run there; its deploy recipe 
 
 ## Integration pins
 
-Core agents install `agent-runtime` at `083967c1c1e91918d76405c5fa3da06150c60a25`,
-which installs SDK `c38db511a8ec2fdaea04455b8ed446c1e74b087f`. Release tooling uses
+Core agents install `agent-runtime` at `b1ecb6206f25c760354b80f878751dad7b329f21`,
+which installs SDK `ee8870bea7a6a7445faa75e923129e8e3b3e975d`. Release tooling uses
 contracts `bba8b097789e1b3b6632052ce8e954c6b8c2a669`. Preserve these reachable Git
 commits when integrating prerequisite PRs. New core releases require the matching
 controller/runner and CRD before activation; legacy deployed stages stay unchanged.
@@ -189,3 +189,8 @@ a dispatch input. Routine CI is offline; live execution is trusted code only. Co
 reports exclude prompts/answers/tool results but can contain sensitive metadata;
 workflow artifacts retain seven days. No merge, release, deployment or production
 qualification is performed by this workflow.
+
+Acknowledgement assertions explicitly trim surrounding ASCII space, tab, CR and LF.
+Default text equality and all file/tool checks remain strict. This dataset-policy
+change starts a new study; preserve the prior failed reports and do not compare
+them as evidence of agent improvement under the revised grader.
