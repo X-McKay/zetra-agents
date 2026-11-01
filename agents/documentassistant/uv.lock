@@ -5,7 +5,7 @@ requires-python = "==3.12.*"
 [[package]]
 name = "agent-runtime"
 version = "0.1.0"
-source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=1b7e7733f43d0d5487dc4e3b023eecbd2b33cbdb#1b7e7733f43d0d5487dc4e3b023eecbd2b33cbdb" }
+source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=083967c1c1e91918d76405c5fa3da06150c60a25#083967c1c1e91918d76405c5fa3da06150c60a25" }
 dependencies = [
     { name = "httpx" },
     { name = "mcp" },
@@ -1525,7 +1525,7 @@ wheels = [
 [[package]]
 name = "zetra"
 version = "0.1.0"
-source = { git = "https://github.com/X-McKay/zetra.git?rev=2c70149d7c0472e79551ce0ce124a885dbf3eaea#2c70149d7c0472e79551ce0ce124a885dbf3eaea" }
+source = { git = "https://github.com/X-McKay/zetra.git?rev=c38db511a8ec2fdaea04455b8ed446c1e74b087f#c38db511a8ec2fdaea04455b8ed446c1e74b087f" }
 dependencies = [
     { name = "google-adk" },
     { name = "google-genai" },
@@ -1552,7 +1552,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=1b7e7733f43d0d5487dc4e3b023eecbd2b33cbdb" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=083967c1c1e91918d76405c5fa3da06150c60a25" }]
 
 [package.metadata.requires-dev]
 dev = [

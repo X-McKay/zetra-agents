@@ -141,8 +141,8 @@ under `legacy/` is still the investigator that has run there; its deploy recipe 
 
 ## Integration pins
 
-Core agents install `agent-runtime` at `1b7e7733f43d0d5487dc4e3b023eecbd2b33cbdb`,
-which installs SDK `2c70149d7c0472e79551ce0ce124a885dbf3eaea`. Release tooling uses
+Core agents install `agent-runtime` at `083967c1c1e91918d76405c5fa3da06150c60a25`,
+which installs SDK `c38db511a8ec2fdaea04455b8ed446c1e74b087f`. Release tooling uses
 contracts `bba8b097789e1b3b6632052ce8e954c6b8c2a669`. Preserve these reachable Git
 commits when integrating prerequisite PRs. New core releases require the matching
 controller/runner and CRD before activation; legacy deployed stages stay unchanged.
