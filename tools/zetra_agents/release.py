@@ -17,7 +17,7 @@ from typing import Any
 import yaml
 from agent_platform.bundle import canonical_json, compile_bundle, digest_hex
 
-from zetra_agents.layout import AgentDir
+from zetra_agents.layout import AgentDir, check
 
 API_VERSION = "agentplatform.io/v1alpha1"
 PREDICATE_TYPE = "https://agentplatform.io/attestations/release/v1"
@@ -44,6 +44,10 @@ def build(
     trust_domain: str,
     date: dt.date | None = None,
 ) -> dict[str, Any]:
+    problems = check(agent)
+    if problems:
+        raise ValueError("; ".join(problems))
+    core = agent.core_manifest()
     cr = agent.agent_cr()
     tenant = cr["metadata"]["namespace"]
     name = release_name(agent.name, image, date or dt.datetime.now(dt.UTC).date())
@@ -64,6 +68,8 @@ def build(
             "approval": {"approved": False},
         },
     }
+    if core is not None:
+        release["spec"]["runtimeProfile"] = core.runtime_profile
     bundle = compile_bundle(
         cr, release, mcp_resource_base=mcp_resource_base.rstrip("/"), trust_domain=trust_domain
     )

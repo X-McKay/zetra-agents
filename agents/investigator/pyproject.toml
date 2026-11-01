@@ -5,7 +5,7 @@ description = "Read-only Kubernetes investigator for the Agent Runtime Platform"
 requires-python = ">=3.12,<3.13"
 # The image lock: uv.lock is AgentRelease.spec.lockSha256. The SDK is pinned to a zetra commit.
 dependencies = [
-    "agent-runtime @ git+https://github.com/X-McKay/zetra.git@158a1701ce9d0d0eaefb6e3d47361d7ac6eec28f#subdirectory=platform/agent-runtime",
+    "agent-runtime @ git+https://github.com/X-McKay/zetra.git@1393cf0286f16245219d9446b6e1b677ade92ff4#subdirectory=platform/agent-runtime",
 ]
 
 [dependency-groups]
@@ -15,15 +15,23 @@ dev = [
     "ruff==0.17.3",
 ]
 
-# The agent package is copied to /app/investigator, not installed (spec 11.7).
-[tool.uv]
-package = false
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/investigator"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.zetra.agents]
+investigator = "src/investigator/agent.yaml"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
-pythonpath = ["src"]
 
 [tool.ruff]
 target-version = "py312"

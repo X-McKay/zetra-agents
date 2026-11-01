@@ -55,14 +55,24 @@ jobs:
       - run: uv run --locked ruff check .
       - run: uv run --locked ruff format --check .
       - run: uv run --locked pytest
+      - name: Required component and trajectory quality gate
+        run: bash scripts/quality.sh
+      - name: Native local Temporal smoke
+        run: |
+          args=()
+          if [[ "${{ matrix.agent }}" == "investigator" ]]; then
+            args+=(--mcp-fixtures evals/investigator/mcp.json)
+          fi
+          uv run --locked zetra dev . --input "Exercise the approved reference workflow" \
+            --temporal --temporal-state "$RUNNER_TEMP/temporal-${{ matrix.agent }}" "${args[@]}"
       - name: Build the image (not pushed)
         run: docker build --platform linux/amd64 -t "agent-${{ matrix.agent }}:ci" .
-      - name: The image's tools match its manifest
+      - name: Installed image matches local/core gateway fixture behavior
         run: |
-          docker run --rm --read-only --user 1500:1500 --network none \
-            --tmpfs /sandbox --tmpfs /tmp -e AGENT_SANDBOX_DIR=/sandbox \
+          docker run --rm --read-only --user 1500:1500 --network none --tmpfs /tmp \
+            -v "$GITHUB_WORKSPACE/tests/conformance:/checks:ro" -v "$PWD:/project:ro" \
             --entrypoint /app/.venv/bin/python "agent-${{ matrix.agent }}:ci" \
-            -c "from agent_runtime import step; print(sorted(step.build_agent(step.load_manifest())[1]))"
+            /checks/check_image.py /project
 
   legacy-openshell-investigator:
     runs-on: ubuntu-latest

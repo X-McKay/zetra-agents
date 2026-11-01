@@ -1,11 +1,13 @@
 import json
-import shutil
-import types
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 import yaml
-from agent_runtime import step
+from google.adk.agents import LlmAgent
+from zetra import AgentContext
+from zetra._runtime.definition import Definition
+from zetra.manifest import load_agent
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,28 +26,37 @@ class FakeMcp:
 def tools(tmp_path, mcp):
     from investigator.agent import create_agent
 
-    ctx = types.SimpleNamespace(workspace=tmp_path, instructions="", mcp=mcp)
-    return {t.fn.__name__: t.fn for t in create_agent(ctx)["tools"]}
+    ctx = AgentContext(None, workspace=tmp_path, model="fixture", mcp_binding=mcp)
+    ctx.seal(create_agent(ctx))
+    executors = ctx.executors()
+
+    def wrap(name, execute):
+        async def call(*args, **kwargs):
+            if args:
+                kwargs["name" if name == "get_pod" else "content"] = args[0]
+            return await execute(kwargs, {}, "test")
+
+        return call
+
+    return {name: wrap(name, execute) for name, execute in executors.items()}
 
 
-@pytest.fixture
-def app(tmp_path, monkeypatch):
-    """The image's /app as the Dockerfile lays it out."""
-    app = tmp_path / "app"
-    app.mkdir()
-    shutil.copy(ROOT / "agent.yaml", app / "agent.yaml")
-    shutil.copytree(ROOT / "src" / "investigator", app / "investigator")
-    monkeypatch.setenv("AGENT_APP_DIR", str(app))
-    monkeypatch.setenv("AGENT_SANDBOX_DIR", str(tmp_path / "sandbox"))
-    return app
-
-
-def test_image_tools_match_the_manifest(app):
-    instructions, built = step.build_agent(step.load_manifest())
-    assert "zetra-poc-fixtures" in instructions
-    assert set(built) == {"list_pods", "get_pod", "list_events", "write_report"}
-    report = step.schema(built["write_report"])["function"]["parameters"]
-    assert report["required"] == ["content"]
+def test_image_tools_match_the_manifest(tmp_path):
+    spec = load_agent(ROOT)
+    definition = Definition(
+        spec.model_dump(),
+        tmp_path,
+        required_tools={
+            "list_pods": "remote_read",
+            "get_pod": "remote_read",
+            "list_events": "remote_read",
+            "write_report": "workspace_write",
+        },
+    )
+    assert "zetra-poc-fixtures" in definition.instruction
+    ctx = definition.context(None)
+    assert isinstance(ctx.seal(definition.factory(ctx)), LlmAgent)
+    assert files("investigator").joinpath("agent.yaml").is_file()
 
 
 def test_manifest_model_and_tools_are_within_the_agent_capabilities():
@@ -86,9 +97,10 @@ async def test_out_of_scope_pod_never_reaches_the_gateway(tmp_path):
     assert not (tmp_path / "evidence").exists()
 
 
-async def test_oversized_observation_is_an_error(tmp_path):
+@pytest.mark.parametrize("tool", ["list_pods", "get_pod", "list_events"])
+async def test_oversized_observation_is_an_error(tmp_path, tool):
     with pytest.raises(ValueError):
-        await tools(tmp_path, FakeMcp("x" * 16_001))["list_pods"]()
+        await tools(tmp_path, FakeMcp("x" * 16_001))[tool]()
     assert not (tmp_path / "evidence").exists()
 
 
@@ -121,3 +133,33 @@ async def test_report_rejects_bad_narratives(tmp_path, content):
 
 async def test_report_requires_evidence(tmp_path):
     assert "error" in await tools(tmp_path, FakeMcp())["write_report"]("Unobserved")
+
+
+@pytest.mark.parametrize("tool", ["list_pods", "get_pod", "list_events"])
+async def test_failed_read_does_not_publish_evidence_and_later_read_works(tmp_path, tool):
+    attempts = 0
+
+    async def flaky(backend, name, args):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("transport unavailable")
+        return {"text": "Synthetic observation"}
+
+    fns = tools(tmp_path, flaky)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await fns[tool]()
+    assert attempts == 1 and not (tmp_path / "evidence").exists()
+    result = await fns[tool]()
+    assert attempts == 2 and (tmp_path / result["evidence"]).is_file()
+
+
+async def test_report_rejection_preserves_prior_report_then_accepts_valid_input(tmp_path):
+    fns = tools(tmp_path, FakeMcp())
+    await fns["list_pods"]()
+    await fns["write_report"]("Observed missing ConfigMap.")
+    before = (tmp_path / "report.md").read_bytes()
+    assert "error" in await fns["write_report"]("See evidence/invented.json")
+    assert (tmp_path / "report.md").read_bytes() == before
+    await fns["write_report"]("Updated observation.")
+    assert (tmp_path / "report.md").read_text().startswith("Updated observation.")

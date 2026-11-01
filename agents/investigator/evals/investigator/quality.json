@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "agent": "investigator",
+  "tools": {
+    "list_pods": "remote_read",
+    "get_pod": "remote_read",
+    "list_events": "remote_read",
+    "write_report": "workspace_write"
+  },
+  "skills": {},
+  "live_model_required": false,
+  "requirements": [
+    {
+      "id": "agent-outcome",
+      "component": "agent",
+      "kind": "outcome",
+      "cases": [
+        "offline-workflow"
+      ]
+    },
+    {
+      "id": "agent-trajectory",
+      "component": "agent",
+      "kind": "trajectory",
+      "cases": [
+        "offline-workflow"
+      ]
+    },
+    {
+      "id": "agent-performance",
+      "component": "agent",
+      "kind": "performance",
+      "cases": [
+        "offline-workflow"
+      ]
+    },
+    {
+      "id": "list_pods-contract",
+      "component": "tool:list_pods",
+      "kind": "contract",
+      "tests": [
+        "tests/test_agent.py::test_mcp_tools_stay_inside_the_reviewed_scope"
+      ]
+    },
+    {
+      "id": "list_pods-security",
+      "component": "tool:list_pods",
+      "kind": "security",
+      "tests": [
+        "tests/test_agent.py::test_oversized_observation_is_an_error"
+      ]
+    },
+    {
+      "id": "list_pods-recovery",
+      "component": "tool:list_pods",
+      "kind": "recovery",
+      "tests": [
+        "tests/test_agent.py::test_failed_read_does_not_publish_evidence_and_later_read_works"
+      ]
+    },
+    {
+      "id": "get_pod-contract",
+      "component": "tool:get_pod",
+      "kind": "contract",
+      "tests": [
+        "tests/test_agent.py::test_mcp_tools_stay_inside_the_reviewed_scope"
+      ]
+    },
+    {
+      "id": "get_pod-security",
+      "component": "tool:get_pod",
+      "kind": "security",
+      "tests": [
+        "tests/test_agent.py::test_oversized_observation_is_an_error"
+      ]
+    },
+    {
+      "id": "get_pod-recovery",
+      "component": "tool:get_pod",
+      "kind": "recovery",
+      "tests": [
+        "tests/test_agent.py::test_failed_read_does_not_publish_evidence_and_later_read_works"
+      ]
+    },
+    {
+      "id": "list_events-contract",
+      "component": "tool:list_events",
+      "kind": "contract",
+      "tests": [
+        "tests/test_agent.py::test_mcp_tools_stay_inside_the_reviewed_scope"
+      ]
+    },
+    {
+      "id": "list_events-security",
+      "component": "tool:list_events",
+      "kind": "security",
+      "tests": [
+        "tests/test_agent.py::test_oversized_observation_is_an_error"
+      ]
+    },
+    {
+      "id": "list_events-recovery",
+      "component": "tool:list_events",
+      "kind": "recovery",
+      "tests": [
+        "tests/test_agent.py::test_failed_read_does_not_publish_evidence_and_later_read_works"
+      ]
+    },
+    {
+      "id": "write_report-contract",
+      "component": "tool:write_report",
+      "kind": "contract",
+      "tests": [
+        "tests/test_agent.py::test_report_appends_exact_links"
+      ]
+    },
+    {
+      "id": "write_report-security",
+      "component": "tool:write_report",
+      "kind": "security",
+      "tests": [
+        "tests/test_agent.py::test_report_rejects_bad_narratives"
+      ]
+    },
+    {
+      "id": "write_report-recovery",
+      "component": "tool:write_report",
+      "kind": "recovery",
+      "tests": [
+        "tests/test_agent.py::test_report_rejection_preserves_prior_report_then_accepts_valid_input"
+      ]
+    }
+  ]
+}
