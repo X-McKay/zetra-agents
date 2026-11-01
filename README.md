@@ -16,9 +16,10 @@ agents/<name>/                one directory per agent, each its own uv project
   tests/                      unit tests, including manifest/tool agreement
   Dockerfile                  the agent image: SDK venv + manifest + package, UID 1500
   pyproject.toml, uv.lock     the image lock; its SHA-256 is AgentRelease.spec.lockSha256
-tools/                        `zetra-agents check | list | release`, pinned to the zetra
+tools/                        `zetra-agents check | list | release | predicate`, pinned to the zetra
                               contracts the Registry Controller runs
-scripts/release.sh            build, push, sign, attest, write release artifacts
+scripts/release.sh            build, push, keyless sign + attest, verify, write release artifacts
+.github/sigstore/             the private Sigstore trust roots releases sign and verify with
 legacy/openshell-investigator the OpenShell POC moved from kubani pocs/, kept until
                               OpenShell is retired after platform Phase B
 ```
@@ -49,38 +50,50 @@ just build <agent>   # local image, not pushed
 
 ## Releasing
 
-A tag `<agent>/v<version>` runs `.github/workflows/release.yml`, which calls
-`scripts/release.sh`. The same script runs anywhere with Docker, cosign and the keys
-(`just release <agent>` on RIG0 when GitHub-hosted runners cannot reach the registry):
+A tag `<agent>/v<version>` runs `.github/workflows/release.yml` on Kubani's
+`kubani-zetra-agents` runner scale set, which calls `scripts/release.sh`:
 
-1. Check the agent and refuse a dirty tree: a release is a commit.
-2. Build and push to `registry.almckay.io/agents/<agent>`, the repository Kubani's
+1. Check the agent, refuse a dirty tree (a release is a commit), and refuse to run as any
+   identity other than the tenant's pin (this workflow on an `<agent>/v*` tag).
+2. Run the agent's tests; their JUnit report becomes the eval predicate.
+3. Build and push to `registry.almckay.io/agents/<agent>`, the repository Kubani's
    admission accepts, and resolve the pushed digest.
-3. Write `dist/<agent>/`:
+4. Write `dist/<agent>/`:
 
    | File | What |
    | --- | --- |
    | `agent.yaml` | the Agent resource |
    | `agentrelease.yaml` | the AgentRelease, `approval.approved: false`, with `image@sha256`, `manifestSha256`, `lockSha256`, `policySha256`, `buildRevision` |
    | `policy-bundle.json` | the compiled bundle (spec 6.3) security review reads |
-   | `predicate.json` | the attestation predicate |
+   | `predicate.json` | the release predicate (`https://agentplatform.io/attestations/release/v1`) |
+   | `provenance.json` | SLSA provenance v1 for the run |
+   | `sbom.spdx.json` | syft's SPDX SBOM of the pushed digest |
+   | `vuln.json` | grype's scan of that SBOM, as a cosign vuln/v1 predicate |
+   | `eval.json` | the eval/v1 predicate from the agent's tests |
    | `image`, `SHA256SUMS` | the pinned reference and checksums |
 
-4. `cosign sign` the digest and `cosign attest` the predicate
-   (`https://agentplatform.io/attestations/release/v1`), then verify both when
-   `COSIGN_PUBLIC_KEY` is set. Transparency-log upload is off by default; it must match
-   how Kubani's Kyverno Rule 1 verifies (an open decision in Kubani's
-   `docs/infrastructure/configuration/agent-runtime-platform.md`).
-5. Publish the files as a GitHub release.
+5. Sign the digest and attest the five predicates **keylessly through Kubani's private
+   Sigstore**: Fulcio (`https://fulcio.almckay.io`) certifies the workflow's GitHub OIDC
+   identity, Rekor (`https://rekor.almckay.io`) logs every entry. There is no signing key.
+   The trust roots are pinned in [`.github/sigstore/`](.github/sigstore/README.md); public
+   Sigstore is never used.
+6. Verify the signature and all five attestations against those roots with the tenant's
+   identity pin, then run the eval and vuln conditions Kyverno applies (`agentctl
+   validate`): no Critical findings, High only when listed in `VULN_EXCEPTIONS`.
+7. Publish the files as a GitHub release.
+
+Fulcio accepts only GitHub Actions tokens, so releases cannot be signed from a laptop.
+cosign, syft and grype come from `registry.almckay.io/mirror/` by digest (see the
+workflow's `env`); grype downloads its vulnerability database on each run.
 
 The policy digest is computed with the same `agent_platform` contracts commit the
 Registry Controller runs. When Kubani moves to a newer controller image, bump the pin
 in `tools/pyproject.toml` with it, or the controller's recomputed digest will differ and
 the release will never be ready.
 
-The workflow needs secrets `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`,
-`COSIGN_PRIVATE_KEY`, `COSIGN_PASSWORD`, and optionally variables `COSIGN_PUBLIC_KEY`,
-`RELEASE_RUNNER`, `AGENT_REGISTRY`, `COSIGN_TLOG_UPLOAD`.
+The workflow needs secrets `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, variable
+`RELEASE_RUNNER=kubani-zetra-agents`, and optionally `AGENT_REGISTRY` and
+`VULN_EXCEPTIONS`.
 
 ## Deploying through Kubani
 

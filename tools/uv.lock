@@ -5,7 +5,7 @@ requires-python = "==3.12.*"
 [[package]]
 name = "agent-platform-contracts"
 version = "0.1.0"
-source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=158a1701ce9d0d0eaefb6e3d47361d7ac6eec28f#158a1701ce9d0d0eaefb6e3d47361d7ac6eec28f" }
+source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=aa83a658c70c50b5732a9c06d25b34c2a20324d8#aa83a658c70c50b5732a9c06d25b34c2a20324d8" }
 dependencies = [
     { name = "pyyaml" },
 ]
@@ -131,7 +131,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agent-platform-contracts", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=158a1701ce9d0d0eaefb6e3d47361d7ac6eec28f" },
+    { name = "agent-platform-contracts", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=aa83a658c70c50b5732a9c06d25b34c2a20324d8" },
     { name = "pyyaml", specifier = "==6.0.3" },
 ]
 

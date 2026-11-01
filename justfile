@@ -24,10 +24,6 @@ check-agent agent:
 build agent:
     docker build --platform linux/amd64 -t agent-{{agent}}:dev agents/{{agent}}
 
-# Build, push, sign, attest and write dist/<agent>; see scripts/release.sh for the environment.
-release agent:
-    scripts/release.sh {{agent}}
-
 # Print the compiled policy bundle and digest for a release file, as the controller computes it.
 policy-digest agent release:
     uv run --project tools --locked agentctl policy-digest --agent agents/{{agent}}/deploy/agent.yaml --release {{release}} --mcp-resource-base https://mcp.almckay.io --print-bundle
