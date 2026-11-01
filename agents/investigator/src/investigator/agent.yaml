@@ -1,0 +1,7 @@
+name: investigator
+owner: local-development
+entrypoint: investigator.agent:create_agent
+model: fixture
+profile: serial-v1
+policy: workspace
+instructions: investigator:instructions/base.md

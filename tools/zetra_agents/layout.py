@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from agent_runtime.core_protocol import CoreManifest, yaml_mapping
+from zetra.manifest import agent_manifest, load_agent, project_file, resource_parts
+from zetra.quality import explain_quality
 
 FORBIDDEN_IMPORTS = {"httpx", "requests", "urllib", "socket", "aiohttp", "subprocess"}
 NAME = re.compile(r"^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$")
@@ -36,7 +39,17 @@ class AgentDir:
         return self.root / "deploy" / "agent.yaml"
 
     def manifest(self) -> dict[str, Any]:
-        return yaml.safe_load(self.manifest_path.read_text(encoding="utf-8"))
+        return yaml_mapping(self.manifest_path.read_bytes())
+
+    def core_manifest(self) -> CoreManifest | None:
+        manifest = self.manifest()
+        if type(manifest.get("schema_version")) is not int:
+            raise ValueError("manifest schema_version must be an integer")
+        if manifest["schema_version"] == 2:
+            return CoreManifest.model_validate(manifest)
+        raise ValueError(
+            "new release artifacts require schema 2 / zetra-core-v1; legacy images remain immutable"
+        )
 
     def agent_cr(self) -> dict[str, Any]:
         return yaml.safe_load(self.agent_cr_path.read_text(encoding="utf-8"))
@@ -78,7 +91,25 @@ def check(agent: AgentDir) -> list[str]:
         return problems
     if not NAME.match(agent.name):
         problems.append(f"{agent.name}: directory name is not a DNS label of at most 32")
-    manifest, cr = agent.manifest(), agent.agent_cr()
+    try:
+        manifest, cr = agent.manifest(), agent.agent_cr()
+        core = agent.core_manifest()
+        if core is not None:
+            package, resource = resource_parts(core.definition)
+            definition = project_file(
+                agent.root, (Path("src", *package.split(".")) / resource).as_posix()
+            )
+            _, indexed = agent_manifest(agent.root, agent.name)
+            if definition != indexed:
+                raise ValueError("platform definition differs from project index")
+            load_agent(agent.root, agent.name)
+            quality = explain_quality(agent.root, agent=agent.name)
+            if quality["status"] != "PASSED":
+                raise ValueError("invalid quality contract: " + "; ".join(quality["missing"]))
+            if core.inventory != quality["tools"]:
+                raise ValueError("platform tool inventory differs from quality contract")
+    except (ValueError, OSError, TypeError, yaml.YAMLError) as exc:
+        return [f"{agent.name}: {exc}"]
     if manifest.get("name") != agent.name:
         problems.append(f"{agent.name}: agent.yaml name is {manifest.get('name')!r}")
     if cr.get("kind") != "Agent" or cr.get("metadata", {}).get("name") != agent.name:

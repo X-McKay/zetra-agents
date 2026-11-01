@@ -4,7 +4,8 @@ import hashlib
 import json
 import re
 
-from agent_runtime.tools import Tool
+from google.adk.agents import LlmAgent
+from zetra import AgentContext, Tool
 
 BACKEND = "kubernetes"
 NAMESPACE = "zetra-poc-fixtures"
@@ -12,7 +13,7 @@ MAX_OBSERVATION = 16_000
 POD_NAME = re.compile(r"investigator-demo-[a-z0-9-]{1,40}")
 
 
-def create_agent(ctx) -> dict:
+def create_agent(ctx: AgentContext) -> LlmAgent:
     evidence_dir = ctx.workspace / "evidence"
 
     async def observe(tool: str, arguments: dict, evidence: str) -> dict:
@@ -63,11 +64,14 @@ def create_agent(ctx) -> dict:
         (ctx.workspace / "report.md").write_text(report, encoding="utf-8")
         return {"path": "report.md"}
 
-    return {
-        "tools": [
+    return LlmAgent(
+        name="investigator",
+        model=ctx.model,
+        instruction=ctx.instruction,
+        tools=ctx.tools(
             Tool(list_pods, "remote_read"),
             Tool(get_pod, "remote_read"),
             Tool(list_events, "remote_read"),
             Tool(write_report, "workspace_write"),
-        ]
-    }
+        ),
+    )

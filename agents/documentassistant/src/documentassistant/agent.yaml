@@ -1,0 +1,7 @@
+name: documentassistant
+owner: local-development
+entrypoint: documentassistant.agent:create_agent
+model: fixture
+profile: serial-v1
+policy: workspace
+instructions: documentassistant:instructions/base.md

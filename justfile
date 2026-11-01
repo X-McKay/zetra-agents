@@ -16,9 +16,9 @@ check-tools:
     cd tools && uv run --locked ruff check . && uv run --locked ruff format --check . && uv run --locked pytest -q
     uv run --project tools --locked zetra-agents check
 
-# Lint and test one agent.
+# Lint, test and execute the agent-owned quality contract.
 check-agent agent:
-    cd agents/{{agent}} && uv run --locked ruff check . && uv run --locked ruff format --check . && uv run --locked pytest -q
+    bash scripts/check-agent.sh {{agent}}
 
 # Build one agent's image locally (not pushed).
 build agent:

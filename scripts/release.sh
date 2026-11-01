@@ -28,14 +28,23 @@ if [[ -n "$(git status --porcelain -- "agents/$agent")" ]]; then
   exit 1
 fi
 
-tools() { uv run --project tools --locked zetra-agents "$@"; }
+# Only committed source enters validation/build contexts or parity-test mounts.
+source_tree=$(mktemp -d)
+trap 'rm -rf -- "$source_tree"' EXIT
+git archive "$revision" -- "agents/$agent" tests/conformance | tar -xf - -C "$source_tree"
+tools() { uv run --project tools --locked zetra-agents --repo "$source_tree" "$@"; }
 tools check "$agent"
+# The same component/trajectory gate as local development and CI.
+bash scripts/check-release.sh "$agent" "$source_tree"
 
 tag="$registry/$agent:${revision:0:12}"
 docker build --pull --platform linux/amd64 \
   --label "org.opencontainers.image.revision=$revision" \
   --label "org.opencontainers.image.source=https://github.com/X-McKay/zetra-agents" \
-  -t "$tag" "agents/$agent"
+  -t "$tag" "$source_tree/agents/$agent"
+docker run --rm --read-only --user 1500:1500 --network none --tmpfs /tmp \
+  -v "$source_tree/tests/conformance:/checks:ro" -v "$source_tree/agents/$agent:/project:ro" \
+  --entrypoint /app/.venv/bin/python "$tag" /checks/check_image.py /project
 docker push "$tag"
 image=$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$tag" \
   | grep -m1 "^$registry/$agent@sha256:")

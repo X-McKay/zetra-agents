@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "agent": "documentassistant",
+  "tools": {
+    "read_document": "workspace_read",
+    "write_answer": "workspace_write"
+  },
+  "skills": {
+    "grounded_answer": "documentassistant:skills/grounded_answer.md"
+  },
+  "live_model_required": false,
+  "requirements": [
+    {
+      "id": "agent-outcome",
+      "component": "agent",
+      "kind": "outcome",
+      "cases": [
+        "offline-workflow"
+      ]
+    },
+    {
+      "id": "agent-trajectory",
+      "component": "agent",
+      "kind": "trajectory",
+      "cases": [
+        "offline-workflow"
+      ]
+    },
+    {
+      "id": "agent-performance",
+      "component": "agent",
+      "kind": "performance",
+      "cases": [
+        "offline-workflow"
+      ]
+    },
+    {
+      "id": "read_document-contract",
+      "component": "tool:read_document",
+      "kind": "contract",
+      "tests": [
+        "tests/test_agent.py::test_read_contract_activates_grounded_answer_skill"
+      ]
+    },
+    {
+      "id": "read_document-security",
+      "component": "tool:read_document",
+      "kind": "security",
+      "tests": [
+        "tests/test_agent.py::test_unapproved_document_abstains_without_skill_or_files"
+      ]
+    },
+    {
+      "id": "read_document-recovery",
+      "component": "tool:read_document",
+      "kind": "recovery",
+      "tests": [
+        "tests/test_agent.py::test_read_recovery_after_rejection"
+      ]
+    },
+    {
+      "id": "write_answer-contract",
+      "component": "tool:write_answer",
+      "kind": "contract",
+      "tests": [
+        "tests/test_agent.py::test_answer_is_exact_quote_with_approved_citation"
+      ]
+    },
+    {
+      "id": "write_answer-security",
+      "component": "tool:write_answer",
+      "kind": "security",
+      "tests": [
+        "tests/test_agent.py::test_answer_rejects_unsupported_claims_and_instructions"
+      ]
+    },
+    {
+      "id": "write_answer-recovery",
+      "component": "tool:write_answer",
+      "kind": "recovery",
+      "tests": [
+        "tests/test_agent.py::test_answer_recovery_preserves_prior_output"
+      ]
+    },
+    {
+      "id": "grounded-contract",
+      "component": "skill:grounded_answer",
+      "kind": "contract",
+      "tests": [
+        "tests/test_agent.py::test_read_contract_activates_grounded_answer_skill"
+      ]
+    },
+    {
+      "id": "grounded-activation",
+      "component": "skill:grounded_answer",
+      "kind": "activation",
+      "tests": [
+        "tests/test_agent.py::test_read_contract_activates_grounded_answer_skill"
+      ]
+    },
+    {
+      "id": "grounded-nonactivation",
+      "component": "skill:grounded_answer",
+      "kind": "nonactivation",
+      "tests": [
+        "tests/test_agent.py::test_unapproved_document_abstains_without_skill_or_files"
+      ]
+    }
+  ]
+}

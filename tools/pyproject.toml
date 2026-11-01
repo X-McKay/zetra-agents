@@ -7,7 +7,8 @@ requires-python = ">=3.12,<3.13"
 # Controller runs, or the recomputed digest will not match spec.policySha256.
 dependencies = [
     "PyYAML==6.0.3",
-    "agent-platform-contracts @ git+https://github.com/X-McKay/zetra.git@158a1701ce9d0d0eaefb6e3d47361d7ac6eec28f#subdirectory=platform/contracts",
+    "agent-runtime @ git+https://github.com/X-McKay/zetra.git@dc406b90c7949996dac85b450347f5c9216b685b#subdirectory=platform/agent-runtime",
+    "agent-platform-contracts @ git+https://github.com/X-McKay/zetra.git@bba8b097789e1b3b6632052ce8e954c6b8c2a669#subdirectory=platform/contracts",
 ]
 
 [project.scripts]

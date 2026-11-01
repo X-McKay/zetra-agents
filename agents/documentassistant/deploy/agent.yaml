@@ -1,0 +1,25 @@
+apiVersion: agentplatform.io/v1alpha1
+kind: Agent
+metadata:
+  name: documentassistant
+  namespace: tenant-test
+spec:
+  owner: 4785437+X-McKay@users.noreply.github.com
+  description: Extractive assistant over approved packaged documents
+  identity:
+    mode: on-behalf-of
+    onBehalfOf:
+      required: true
+      fallback: deny
+  capabilities:
+    models:
+    - backend: llm-main
+      models:
+      - Qwen3.6-35B-A3B-NVFP4
+      budget:
+        tokensPerDay: 5000000
+        tokensPerSession: 200000
+  runtime:
+    cpu: '1'
+    memory: 2Gi
+    ttlSeconds: 1800

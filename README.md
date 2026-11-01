@@ -25,27 +25,58 @@ legacy/openshell-investigator the OpenShell POC moved from kubani pocs/, kept un
 
 ## Writing an agent
 
-An agent is a package whose `create_agent(ctx)` returns `{"tools": [Tool(fn, effect)]}`.
-`ctx.workspace` is the session's workspace, `ctx.instructions` the loaded instructions,
-and `ctx.mcp(backend, tool, arguments)` the only route out: it goes through the gateway
-with the agent's own token. Effects are `workspace_read`, `workspace_write` and
-`remote_read`; `remote_write` is not admitted. Tool docstrings are the descriptions the
-model sees.
+New agents use ordinary Python: `create_agent(ctx)` returns an ADK `LlmAgent`
+using `ctx.model`, `ctx.instruction`, and `ctx.tools(zetra.Tool(...))`. The same
+packaged SDK definition runs locally, under local Temporal, and in the platform's
+explicit `zetra-core-v1` profile. The schema-2 root envelope points to that resource;
+`[tool.zetra.agents]` indexes the same file. Old immutable releases retain their
+legacy runtime and are not relabelled or resumed as core sessions.
 
-`zetra-agents check` (run in CI) refuses an agent whose source imports `httpx`,
-`requests`, `urllib`, `socket`, `aiohttp` or `subprocess` (spec 14.1), whose manifest
-names a model the Agent does not grant, or whose names disagree. Each agent's tests load
-the manifest through the SDK's own `build_agent`, and CI does the same inside the built
-image, so a tool added to the code but not to `agent.yaml` fails before release.
+`ctx.workspace` holds run artifacts. Registered `remote_read` tools may call
+`await ctx.mcp(backend, tool, arguments)`. Local calls need explicit fixtures; the
+platform injects the reviewed authenticated gateway binding. Factory/background
+MCP calls and unbound calls fail. Remote writes remain outside the admitted profile.
 
-To add one, copy `agents/investigator`, rename the directory, package and names, set the
-Agent's tenant namespace to one Kubani defines, then `uv lock` in the new directory.
+Two references cover different workloads:
+
+- `investigator`: scoped synthetic Kubernetes observations and a cited report;
+  existing MCP capabilities are unchanged.
+- `documentassistant`: approved packaged documentation, a runtime grounding skill,
+  exact-quote output and explicit abstention. No external MCP capability.
 
 ```sh
-just setup           # lock-exact environments for tools and every agent
-just check           # what CI runs, minus the image build
-just build <agent>   # local image, not pushed
+just setup
+just check                   # static checks, tests, component/trajectory quality gates
+cd agents/investigator
+uv run --locked zetra dev . --input "Investigate the synthetic pod" \
+  --mcp-fixtures evals/investigator/mcp.json
+# Optional native local Temporal: append --temporal (Linux; no cluster needed).
+bash scripts/quality.sh      # explicitly selects this agent's synthetic MCP fixture
 ```
+
+The document assistant uses the same commands without `--mcp-fixtures`.
+`zetra quality . --explain` shows required coverage; `evals/<agent>/quality.json`
+maps every tool to contract/security/recovery tests and the agent to outcome,
+trajectory and performance evidence. Runtime skills require contract, activation
+and nonactivation coverage. CI and the release script execute these gates.
+Deterministic fixtures and step budgets are not live accuracy, latency, cost or
+prompt-injection qualification. Representative model evals and calibrated gates
+remain required before production approval.
+
+`zetra-agents check` is data-only: it rejects missing/different packaged resources,
+unsupported profiles, model permissions and tool/quality inventory drift without
+importing factories. Static network-import checks are a review aid, not a sandbox.
+New artifact generation requires schema 2; downgrade/mixed legacy manifests fail.
+Existing immutable legacy images and histories remain supported by the platform.
+Image conformance runs the installed package as UID 1500, read-only and with no
+external network, comparing local results with cold core commands through a TLS
+model/MCP fixture. Build-time Git and development dependencies are absent from the
+runtime image.
+
+Start ordinary local-first projects with the canonical `zetra-template`. These
+references add the currently required reviewed Agent resource and platform envelope;
+a deployment scaffold that generates those files is still a future DX improvement.
+Run `just build <agent>` to build locally. No cluster stages are changed here.
 
 ## Releasing
 
@@ -53,8 +84,11 @@ A tag `<agent>/v<version>` runs `.github/workflows/release.yml`, which calls
 `scripts/release.sh`. The same script runs anywhere with Docker, cosign and the keys
 (`just release <agent>` on RIG0 when GitHub-hosted runners cannot reach the registry):
 
-1. Check the agent and refuse a dirty tree: a release is a commit.
-2. Build and push to `registry.almckay.io/agents/<agent>`, the repository Kubani's
+1. Refuse a dirty agent tree and export the selected Git revision. Build and run
+   its validation target without inherited signing variables, credential files, host
+   mounts or external network. Cache writes go to tmpfs. Agent code never executes
+   in the credentialed release shell.
+2. Build, verify the installed image against offline/core TLS fixtures, then push to `registry.almckay.io/agents/<agent>`, the repository Kubani's
    admission accepts, and resolve the pushed digest.
 3. Write `dist/<agent>/`:
 
@@ -104,3 +138,13 @@ release built against the old Agent stops being ready until a new one is cut.
 The platform is staged in Kubani and has not run on the cluster yet. The OpenShell POC
 under `legacy/` is still the investigator that has run there; its deploy recipe is
 `legacy/openshell-investigator/deploy/README.md`.
+
+## Integration pins
+
+Core agents install `agent-runtime` at `dc406b90c7949996dac85b450347f5c9216b685b`,
+which installs SDK `750180967185181181c2ebc95e19e2c913756e67`. Release tooling uses
+contracts `bba8b097789e1b3b6632052ce8e954c6b8c2a669`. Preserve these reachable Git
+commits when integrating prerequisite PRs. New core releases require the matching
+controller/runner and CRD before activation; legacy deployed stages stay unchanged.
+The release builder derives `runtimeProfile` before computing the signed policy
+digest and always emits `approval.approved: false`.
