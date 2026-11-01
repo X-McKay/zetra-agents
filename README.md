@@ -183,7 +183,13 @@ request counts are capped before dispatch. This is not an exact monetary budget.
 The manual live workflow requires a preconfigured GitHub environment named
 `live-evaluation` with default-branch-only deployment protection, administrator-owned
 `EVAL_MODEL_BASE_URL` / `EVAL_MODEL_NAME` variables and an optional dedicated
-environment secret `EVAL_MODEL_API_KEY`. Do not put this key in repository-wide
+environment secret `EVAL_MODEL_API_KEY`. Optional environment variable
+`EVAL_ENABLE_THINKING` accepts exactly `true` or `false`; omission preserves the
+provider default. Compatible Qwen/vLLM endpoints can use `false` for bounded direct
+responses. Locally, the corresponding explicit model JSON field is
+`"enable_thinking": false`. Changing this mode requires fresh evidence; truncated
+responses remain errors and unknown usage still stops the study.
+Do not put the model key in repository-wide
 secrets or mix in signing/registry credentials. Endpoint/model configuration is not
 a dispatch input. Routine CI is offline; live execution is trusted code only. Compact
 reports exclude prompts/answers/tool results but can contain sensitive metadata;
