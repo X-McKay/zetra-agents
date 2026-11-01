@@ -5,7 +5,7 @@ description = "Extractive document assistant using approved packaged sources"
 requires-python = ">=3.12,<3.13"
 # The image lock: uv.lock is AgentRelease.spec.lockSha256. The SDK is pinned to a zetra commit.
 dependencies = [
-    "agent-runtime @ git+https://github.com/X-McKay/zetra.git@cf158f8979da6c160bc37f6a2b2592ab4e8c0ef2#subdirectory=platform/agent-runtime",
+    "agent-runtime @ git+https://github.com/X-McKay/zetra.git@eb444ea3473452042760458658df94f5abdf7d95#subdirectory=platform/agent-runtime",
 ]
 
 [dependency-groups]

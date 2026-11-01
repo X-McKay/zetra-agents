@@ -36,10 +36,22 @@ def create_agent(ctx: AgentContext) -> LlmAgent:
         }
 
     async def write_answer(quote: str = DEFAULT_QUOTE, document_id: str = "guide") -> dict:
-        """Write an exact approved-source excerpt with its source ID; otherwise abstain."""
+        """Read the guide first, then write an exact excerpt; otherwise refuse the write."""
         text = source(document_id)
         if text is None or not quote.strip() or len(quote.encode()) > 4000 or quote not in text:
             return abstain()
+        grounded = any(
+            read["result"].get("document_id") == document_id
+            and read["result"].get("text") == text
+            and read["result"].get("skill", {}).get("name") == "grounded_answer"
+            and read["result"].get("skill", {}).get("instruction")
+            for read in ctx.prior_tool_results("read_document")
+        )
+        if not grounded:
+            return {
+                "status": "READ_REQUIRED",
+                "reason": "Call read_document for the approved guide and its skill before writing.",
+            }
         (ctx.workspace / "answer.md").write_text(
             f"> {quote}\n\nSource: {document_id}\n", encoding="utf-8"
         )
