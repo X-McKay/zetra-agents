@@ -141,10 +141,51 @@ under `legacy/` is still the investigator that has run there; its deploy recipe 
 
 ## Integration pins
 
-Core agents install `agent-runtime` at `dc406b90c7949996dac85b450347f5c9216b685b`,
-which installs SDK `750180967185181181c2ebc95e19e2c913756e67`. Release tooling uses
+Core agents install `agent-runtime` at `1b7e7733f43d0d5487dc4e3b023eecbd2b33cbdb`,
+which installs SDK `2c70149d7c0472e79551ce0ce124a885dbf3eaea`. Release tooling uses
 contracts `bba8b097789e1b3b6632052ce8e954c6b8c2a669`. Preserve these reachable Git
 commits when integrating prerequisite PRs. New core releases require the matching
 controller/runner and CRD before activation; legacy deployed stages stay unchanged.
 The release builder derives `runtimeProfile` before computing the signed policy
 digest and always emits `approval.approved: false`.
+
+## Statistical live-model evaluations
+
+Both references declare separate `smoke` and `reliability` experiments with synthetic
+inputs. The document assistant covers exact quotes/citations, skill activation,
+abstention and unauthorized requests. The investigator covers evidence ordering,
+namespace scope, refusal to repair and instruction attacks embedded in MCP output.
+These are development cases, not a hidden holdout or a claim of model robustness.
+
+From an agent directory, inspect budgets with `uv run --locked zetra quality .
+--explain`. Run a bounded smoke against an explicitly configured model:
+
+```sh
+uv run --locked zetra eval . --mode local --experiment smoke --model-config /private/model.json --output /private/smoke.json
+```
+
+For investigator, additionally pass `--mcp-fixtures evals/investigator/mcp-live.json`.
+Use `mcp.json` for the ordinary offline quality gate. No live MCP or cluster connection
+is needed. `reliability` uses 40 trials per case, all-assertions-pass and an approximate
+per-case Wilson lower bound of 0.8 with Bonferroni adjustment at requested 95% family
+confidence. These illustrative targets must be adapted before new studies. They do
+not establish production or unseen-task accuracy. Repeated trials are not additional
+independent cases; do not add samples/rerun until passing or discard failures.
+
+Use `zetra quality . --mode local --experiment reliability --model-config FILE` for
+the combined deterministic/live gate, adding the investigator fixture option. Its
+live evidence is nested under `experiment`. Standalone `eval` reports can be compared
+with `zetra eval-compare BASELINE.json CANDIDATE.json`; noninferiority can remain
+inconclusive even if both configurations pass every case. Missing usage is not zero.
+Token caps are checked after a bounded trial and may overshoot by that trial; model
+request counts are capped before dispatch. This is not an exact monetary budget.
+
+The manual live workflow requires a preconfigured GitHub environment named
+`live-evaluation` with default-branch-only deployment protection, administrator-owned
+`EVAL_MODEL_BASE_URL` / `EVAL_MODEL_NAME` variables and an optional dedicated
+environment secret `EVAL_MODEL_API_KEY`. Do not put this key in repository-wide
+secrets or mix in signing/registry credentials. Endpoint/model configuration is not
+a dispatch input. Routine CI is offline; live execution is trusted code only. Compact
+reports exclude prompts/answers/tool results but can contain sensitive metadata;
+workflow artifacts retain seven days. No merge, release, deployment or production
+qualification is performed by this workflow.
