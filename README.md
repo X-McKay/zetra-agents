@@ -66,6 +66,8 @@ remain required before production approval.
 `zetra-agents check` is data-only: it rejects missing/different packaged resources,
 unsupported profiles, model permissions and tool/quality inventory drift without
 importing factories. Static network-import checks are a review aid, not a sandbox.
+New artifact generation requires schema 2; downgrade/mixed legacy manifests fail.
+Existing immutable legacy images and histories remain supported by the platform.
 Image conformance runs the installed package as UID 1500, read-only and with no
 external network, comparing local results with cold core commands through a TLS
 model/MCP fixture. Build-time Git and development dependencies are absent from the
@@ -82,7 +84,10 @@ A tag `<agent>/v<version>` runs `.github/workflows/release.yml`, which calls
 `scripts/release.sh`. The same script runs anywhere with Docker, cosign and the keys
 (`just release <agent>` on RIG0 when GitHub-hosted runners cannot reach the registry):
 
-1. Check the agent, run its tests and quality gate, and refuse a dirty agent tree: a release is a commit.
+1. Refuse a dirty agent tree and export the selected Git revision. Build and run
+   its validation target without inherited signing variables, credential files, host
+   mounts or external network. Cache writes go to tmpfs. Agent code never executes
+   in the credentialed release shell.
 2. Build, verify the installed image against offline/core TLS fixtures, then push to `registry.almckay.io/agents/<agent>`, the repository Kubani's
    admission accepts, and resolve the pushed digest.
 3. Write `dist/<agent>/`:
@@ -136,7 +141,7 @@ under `legacy/` is still the investigator that has run there; its deploy recipe 
 
 ## Integration pins
 
-Core agents install `agent-runtime` at `1393cf0286f16245219d9446b6e1b677ade92ff4`,
+Core agents install `agent-runtime` at `e7804ac21020fe23eddc047044bde31256676b13`,
 which installs SDK `d63867833bf64efda9c77b6f9625905b38d8cf02`. Release tooling uses
 contracts `bba8b097789e1b3b6632052ce8e954c6b8c2a669`. Preserve these reachable Git
 commits when integrating prerequisite PRs. New core releases require the matching

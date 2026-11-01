@@ -166,3 +166,25 @@ def test_malformed_core_cannot_pass_or_build_release(core, change):
     assert layout.check(core)
     with pytest.raises(ValueError):
         artifacts(core)
+
+
+@pytest.mark.parametrize(
+    "change", ["downgrade", "missing-entrypoint", "missing-instructions", "mixed-definition"]
+)
+def test_legacy_shape_cannot_bypass_core_admission(core, change):
+    manifest = core.manifest()
+    manifest["schema_version"] = 1
+    manifest.pop("runtime_profile")
+    if change != "downgrade":
+        manifest.pop("definition")
+        manifest.update(entrypoint="sample.factory:create_agent", instructions="sample/prompt.md")
+        if change == "missing-entrypoint":
+            manifest.pop("entrypoint")
+        elif change == "missing-instructions":
+            manifest.pop("instructions")
+        else:
+            manifest["definition"] = "sample:missing.yaml"
+    core.manifest_path.write_text(yaml.safe_dump(manifest))
+    assert layout.check(core)
+    with pytest.raises(ValueError):
+        artifacts(core)

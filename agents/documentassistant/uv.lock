@@ -5,7 +5,7 @@ requires-python = "==3.12.*"
 [[package]]
 name = "agent-runtime"
 version = "0.1.0"
-source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=1393cf0286f16245219d9446b6e1b677ade92ff4#1393cf0286f16245219d9446b6e1b677ade92ff4" }
+source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=e7804ac21020fe23eddc047044bde31256676b13#e7804ac21020fe23eddc047044bde31256676b13" }
 dependencies = [
     { name = "httpx" },
     { name = "mcp" },
@@ -1552,7 +1552,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=1393cf0286f16245219d9446b6e1b677ade92ff4" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=e7804ac21020fe23eddc047044bde31256676b13" }]
 
 [package.metadata.requires-dev]
 dev = [

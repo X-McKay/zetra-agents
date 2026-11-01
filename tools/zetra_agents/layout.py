@@ -47,9 +47,9 @@ class AgentDir:
             raise ValueError("manifest schema_version must be an integer")
         if manifest["schema_version"] == 2:
             return CoreManifest.model_validate(manifest)
-        if manifest["schema_version"] != 1 or "runtime_profile" in manifest:
-            raise ValueError("unsupported manifest schema/profile")
-        return None
+        raise ValueError(
+            "new release artifacts require schema 2 / zetra-core-v1; legacy images remain immutable"
+        )
 
     def agent_cr(self) -> dict[str, Any]:
         return yaml.safe_load(self.agent_cr_path.read_text(encoding="utf-8"))

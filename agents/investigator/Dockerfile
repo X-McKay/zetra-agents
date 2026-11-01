@@ -11,6 +11,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --compile-bytecode
+# Agent-authored checks run only here, without release-host credentials or mounts.
+FROM build AS validation
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen
+COPY deploy ./deploy
+COPY tests ./tests
+COPY evals ./evals
+COPY scripts ./scripts
+COPY agent.yaml ./agent.yaml
+CMD ["bash", "/app/scripts/check.sh"]
+
 FROM python:3.12.14-slim
 COPY --from=build /app/.venv /app/.venv
 COPY agent.yaml /app/agent.yaml

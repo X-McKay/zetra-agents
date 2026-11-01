@@ -67,6 +67,10 @@ jobs:
             --temporal --temporal-state "$RUNNER_TEMP/temporal-${{ matrix.agent }}" "${args[@]}"
       - name: Build the image (not pushed)
         run: docker build --platform linux/amd64 -t "agent-${{ matrix.agent }}:ci" .
+      - name: Credential-isolated release quality gate
+        run: |
+          bash ../../scripts/check-release.sh "${{ matrix.agent }}"
+          python ../../tests/conformance/check_release_isolation.py "zetra-${{ matrix.agent }}-validation:local"
       - name: Installed image matches local/core gateway fixture behavior
         run: |
           docker run --rm --read-only --user 1500:1500 --network none --tmpfs /tmp \
