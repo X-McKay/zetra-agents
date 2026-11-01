@@ -4,7 +4,7 @@
 # read-only root filesystem; the Session Runner execs agent_runtime.step per boundary.
 FROM ghcr.io/astral-sh/uv:0.13.1 AS uv
 
-FROM python:3.12.14-slim AS build
+FROM python:3.12.16-slim@sha256:8523d6abeb48ceae0b7240d30c5808fc26cb79c1a635bacdf19cf3baecfbec07 AS build
 COPY --from=uv /uv /usr/local/bin/uv
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
@@ -13,7 +13,12 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project --compile-bytecode
 
-FROM python:3.12.14-slim
+# 3.12.16 fixes the interpreter's Critical CVE-2026-19445 and CVE-2026-115557; the
+# upgrade takes Debian security fixes newer than the base image (openssl, pcre2), which
+# Kubani's admission vuln check would otherwise reject.
+FROM python:3.12.16-slim@sha256:8523d6abeb48ceae0b7240d30c5808fc26cb79c1a635bacdf19cf3baecfbec07
+RUN apt-get update && apt-get -y upgrade --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/.venv /app/.venv
 COPY agent.yaml /app/agent.yaml
 COPY src/investigator /app/investigator

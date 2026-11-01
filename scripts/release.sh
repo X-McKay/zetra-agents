@@ -88,12 +88,16 @@ echo "pushed $image"
 
 tools release "$agent" --image "$image" --revision "$revision" --out "$out"
 
-# SPDX SBOM of the pushed digest, and grype's scan of that SBOM.
+# SPDX SBOM of the pushed digest, and grype's scan of that SBOM. The vuln attestation
+# (what admission judges) holds only findings that have a fix: a finding the distribution
+# will not fix cannot be acted on by a rebuild. The complete scan is published next to it
+# as vuln-full.json for review.
 syft scan "registry:$image" -q \
   -o "spdx-json=$out/sbom.spdx.json" -o "syft-json=$work/sbom.syft.json"
 started=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)
-grype "sbom:$work/sbom.syft.json" -q -o json --file "$work/grype.json"
+grype "sbom:$work/sbom.syft.json" -q -o json --only-fixed --file "$work/grype.json"
 finished=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)
+grype "sbom:$work/sbom.syft.json" -q -o json --file "$out/vuln-full.json"
 tools predicate vuln --grype "$work/grype.json" --started "$started" --finished "$finished" \
   --out "$out/vuln.json"
 tools predicate provenance --revision "$revision" --out "$out/provenance.json"

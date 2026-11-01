@@ -68,7 +68,8 @@ A tag `<agent>/v<version>` runs `.github/workflows/release.yml` on Kubani's
    | `predicate.json` | the release predicate (`https://agentplatform.io/attestations/release/v1`) |
    | `provenance.json` | SLSA provenance v1 for the run |
    | `sbom.spdx.json` | syft's SPDX SBOM of the pushed digest |
-   | `vuln.json` | grype's scan of that SBOM, as a cosign vuln/v1 predicate |
+   | `vuln.json` | grype's scan of that SBOM, findings with a fix only, as a cosign vuln/v1 predicate |
+   | `vuln-full.json` | the complete grype report, including findings the distribution will not fix |
    | `eval.json` | the eval/v1 predicate from the agent's tests |
    | `image`, `SHA256SUMS` | the pinned reference and checksums |
 
