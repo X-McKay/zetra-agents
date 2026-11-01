@@ -5,7 +5,7 @@ description = "Read-only Kubernetes investigator for the Agent Runtime Platform"
 requires-python = ">=3.12,<3.13"
 # The image lock: uv.lock is AgentRelease.spec.lockSha256. The SDK is pinned to a zetra commit.
 dependencies = [
-    "agent-runtime @ git+https://github.com/X-McKay/zetra.git@dc406b90c7949996dac85b450347f5c9216b685b#subdirectory=platform/agent-runtime",
+    "agent-runtime @ git+https://github.com/X-McKay/zetra.git@eb444ea3473452042760458658df94f5abdf7d95#subdirectory=platform/agent-runtime",
 ]
 
 [dependency-groups]
