@@ -86,15 +86,25 @@ jobs:
           AGENT: ${{ steps.agent.outputs.name }}
           GRYPE_DB_CACHE_DIR: ${{ runner.temp }}/grype-db
         run: scripts/release.sh "$AGENT"
+      # The runner image has no gh CLI, so this talks to the REST API with curl.
       - name: Publish the release artifacts
         env:
           GH_TOKEN: ${{ github.token }}
           AGENT: ${{ steps.agent.outputs.name }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          name=$(uv run --project tools --locked python -c \
-            'import json,sys; print(json.load(open(sys.argv[1]))["release"])' "dist/$AGENT/predicate.json")
-          tag="$REF_NAME"
-          gh release create "$tag" dist/"$AGENT"/* --target "$GITHUB_SHA" \
-            --title "$name" \
-            --notes "Image: $(cat "dist/$AGENT/image"). Signed keylessly through the private Sigstore as https://github.com/$GITHUB_WORKFLOW_REF. Unapproved AgentRelease; copy agent.yaml and agentrelease.yaml into Kubani (see README)."
+          py() { uv run --project tools --locked python -c "$@"; }
+          api="${GITHUB_API_URL:-https://api.github.com}/repos/$GITHUB_REPOSITORY"
+          auth=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
+          name=$(py 'import json,sys; print(json.load(open(sys.argv[1]))["release"])' "dist/$AGENT/predicate.json")
+          notes="Image: $(cat "dist/$AGENT/image"). Signed keylessly through the private Sigstore as https://github.com/$GITHUB_WORKFLOW_REF. Unapproved AgentRelease; copy agent.yaml and agentrelease.yaml into Kubani (see README)."
+          body=$(py 'import json,sys; print(json.dumps({"tag_name": sys.argv[1], "target_commitish": sys.argv[2], "name": sys.argv[3], "body": sys.argv[4]}))' \
+            "$REF_NAME" "$GITHUB_SHA" "$name" "$notes")
+          release=$(curl -fsS "${auth[@]}" -X POST "$api/releases" -d "$body")
+          upload=$(py 'import json,sys; print(json.loads(sys.argv[1])["upload_url"].split("{")[0])' "$release")
+          for f in dist/"$AGENT"/*; do
+            curl -fsS -o /dev/null "${auth[@]}" -H "Content-Type: application/octet-stream" \
+              --data-binary "@$f" "$upload?name=$(basename "$f")"
+            echo "uploaded $(basename "$f")"
+          done
+          py 'import json,sys; print(json.loads(sys.argv[1])["html_url"])' "$release"
