@@ -7,7 +7,9 @@ instructions: conformance/instructions/base.md
 model:
   backend: llm-main
   name: Qwen3.6-35B-A3B-NVFP4
-  max_tokens: 256
+  # Room for the model's thinking (llm-main runs --reasoning-parser qwen3) plus a tool
+  # call that repeats a ~300-character form; at 256 the reply was cut before the call.
+  max_tokens: 2048
   temperature: 0
 tools:
   - name: probe_connect
