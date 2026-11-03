@@ -13,6 +13,8 @@ import yaml
 FORBIDDEN_IMPORTS = {"httpx", "requests", "urllib", "socket", "aiohttp", "subprocess"}
 NAME = re.compile(r"^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$")
 REQUIRED = ("agent.yaml", "deploy/agent.yaml", "Dockerfile", "pyproject.toml", "uv.lock")
+# The conformance agent's probes attempt what every other agent must not (spec 15.1).
+NETWORK_ALLOWED = {"conformance"}
 
 
 @dataclass(frozen=True)
@@ -91,5 +93,6 @@ def check(agent: AgentDir) -> list[str]:
     if any(t.get("effect") == "remote_write" for t in manifest.get("tools") or []):
         problems.append(f"{agent.name}: remote_write tools are not admitted")
     src = agent.root / "src"
-    problems += [f"{agent.name}: {p}" for p in forbidden_imports(src)] if src.is_dir() else []
+    if src.is_dir() and agent.name not in NETWORK_ALLOWED:
+        problems += [f"{agent.name}: {p}" for p in forbidden_imports(src)]
     return problems

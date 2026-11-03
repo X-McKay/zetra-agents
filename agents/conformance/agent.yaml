@@ -1,0 +1,22 @@
+# Agent manifest (spec 11.7). Baked into the image as /app/agent.yaml; its SHA-256 is
+# AgentRelease.spec.manifestSha256. The tools listed here must match create_agent exactly.
+schema_version: 1
+name: conformance
+entrypoint: conformance.agent:create_agent
+instructions: conformance/instructions/base.md
+model:
+  backend: llm-main
+  name: Qwen3.6-35B-A3B-NVFP4
+  max_tokens: 256
+  temperature: 0
+tools:
+  - name: probe_connect
+    effect: remote_read
+  - name: probe_http
+    effect: remote_read
+  - name: probe_env
+    effect: workspace_read
+  - name: probe_files
+    effect: workspace_read
+  - name: list_pods
+    effect: remote_read
