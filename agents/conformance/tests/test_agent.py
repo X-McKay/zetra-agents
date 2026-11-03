@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import os
 import types
 from pathlib import Path
 
@@ -45,6 +46,13 @@ def test_probe_connect_reports_a_refused_port(tmp_path):
 
 
 def test_probe_env_names_a_variable_holding_a_jwt(tmp_path, monkeypatch):
+    from conformance.agent import JWT
+
+    # The release runner's own environment holds a JWT (ACTIONS_ID_TOKEN_REQUEST_TOKEN);
+    # the probe is right to report it, so start from an environment without any.
+    for name, value in list(os.environ.items()):
+        if JWT.search(value):
+            monkeypatch.delenv(name)
     monkeypatch.setenv("SMUGGLED", jwt({"sub": "x"}))
     probe = next(t.fn for t in tools(tmp_path) if t.fn.__name__ == "probe_env")
     result = asyncio.run(probe())
