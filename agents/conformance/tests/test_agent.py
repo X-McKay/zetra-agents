@@ -58,3 +58,10 @@ def test_probe_env_names_a_variable_holding_a_jwt(tmp_path, monkeypatch):
     result = asyncio.run(probe())
     assert result["jwt_in"] == ["SMUGGLED"]
     assert jwt({"sub": "x"}) not in json.dumps(result)
+
+
+def test_audiences_flattens_and_sorts_string_and_list_aud():
+    from conformance.agent import audiences
+
+    claims = [{"aud": "agent-gateway"}, {"aud": ["b", "agent-gateway", ""]}, {"aud": None}, {}]
+    assert audiences(claims) == ["agent-gateway", "b"]
