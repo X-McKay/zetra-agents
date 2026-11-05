@@ -30,6 +30,18 @@ def claims_of(token: str) -> dict:
     return json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
 
 
+def audiences(claims: list[dict]) -> list[str]:
+    """The distinct `aud` values across claims, so a report can name the token kind in a few
+    characters: the platform keeps only 512 characters of the agent's summary (T4)."""
+    out: set[str] = set()
+    for c in claims:
+        aud = c.get("aud")
+        for a in aud if isinstance(aud, list) else [aud]:
+            if isinstance(a, str) and a:
+                out.add(a)
+    return sorted(out)
+
+
 def redact(text: str) -> tuple[str, list[dict]]:
     """Replace every JWT with a marker and return the claims, so tests can check them."""
     found = []
@@ -111,7 +123,14 @@ def create_agent(ctx) -> dict:
                     continue
                 if claims:
                     mode = oct(path.stat().st_mode & 0o777)
-                    files.append({"path": str(path), "mode": mode, "claims": claims})
+                    files.append(
+                        {
+                            "path": str(path),
+                            "mode": mode,
+                            "aud": audiences(claims),
+                            "claims": claims,
+                        }
+                    )
         return {"files": files}
 
     async def list_pods(namespace: str) -> dict:
