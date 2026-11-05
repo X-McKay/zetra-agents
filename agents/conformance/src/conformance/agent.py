@@ -5,6 +5,7 @@ every other agent is forbidden to try. The sandbox's network policy and the gate
 what stop it, which is what those tests prove. Results never include a token.
 """
 
+import asyncio
 import base64
 import json
 import os
@@ -12,13 +13,17 @@ import pathlib
 import re
 import socket
 import time
+from datetime import timedelta
 
 import httpx
-from agent_runtime.identity import BearerAuth, gateway_url, identity, tls_verify
+from agent_runtime.identity import BearerAuth, env, gateway_url, identity, tls_verify
 from agent_runtime.tools import Tool
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
 
 BACKEND = "kubernetes"
 CONNECT_TIMEOUT = 2.0
+MCP_CALL_TIMEOUT = 25.0
 MAX_BODY = 4096
 JWT = re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")
 # T3: where a token could be hiding.
@@ -54,6 +59,55 @@ def redact(text: str) -> tuple[str, list[dict]]:
         return "[jwt]"
 
     return JWT.sub(mark, text), found
+
+
+def outcome(status: int | None, failed: bool, is_error: bool = False) -> str:
+    """One word per MCP call, so a T19 report of ten calls fits the 512-character summary."""
+    if failed:
+        if status == 403:
+            return "deny"
+        if status == 429:
+            return "budget"
+        return f"http:{status}" if status else "error"
+    return "error" if is_error else "ok"
+
+
+async def mcp_call(
+    backend: str,
+    tool: str,
+    arguments: dict,
+    extra_headers: dict,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> str:
+    """One MCP tools/call through the gateway with the agent's bearer, the way the SDK does it,
+    plus extra request headers so a test can send forged x-agent-* values (T8). The outcome is a
+    word; the status the gateway answered is the fact, however the transport wraps it."""
+    verify = tls_verify()
+    auth = BearerAuth(identity())
+    try:
+        async with (
+            asyncio.timeout(MCP_CALL_TIMEOUT),
+            httpx.AsyncClient(
+                headers={"Host": env("AGENT_MCP_HOST"), **extra_headers},
+                auth=auth,
+                verify=verify,
+                timeout=15.0,
+                follow_redirects=False,
+                transport=transport or httpx.AsyncHTTPTransport(verify=verify),
+            ) as http,
+            streamable_http_client(f"{gateway_url()}/{backend}/mcp", http_client=http) as (
+                read,
+                write,
+                _,
+            ),
+            ClientSession(read, write, read_timeout_seconds=timedelta(seconds=15)) as session,
+        ):
+            await session.initialize()
+            result = await session.call_tool(tool, arguments)
+    except Exception:  # noqa: BLE001 - the status is the fact; the transport's wrapping varies
+        return outcome(auth.status, failed=True)
+    return outcome(auth.status, failed=False, is_error=bool(result.isError))
 
 
 def create_agent(ctx) -> dict:
@@ -138,6 +192,25 @@ def create_agent(ctx) -> dict:
         result = await ctx.mcp(BACKEND, "pods_list_in_namespace", {"namespace": namespace})
         return {"text": result["text"][:MAX_BODY]}
 
+    async def probe_mcp(
+        tool: str,
+        args: str = "{}",
+        alt_tool: str = "",
+        rounds: str = "1",
+        headers: str = "{}",
+    ) -> dict:
+        """Call MCP tools on the kubernetes backend through the gateway (T8, T19): `tool`, then
+        `alt_tool` if given, `rounds` times, with any extra request `headers` (JSON). Reports one
+        word per call (ok, deny, budget, error, http:<status>) and never a token."""
+        arguments = json.loads(args)
+        extra = json.loads(headers)
+        calls: list[str] = []
+        for _ in range(int(rounds)):
+            calls.append(await mcp_call(BACKEND, tool, arguments, extra))
+            if alt_tool:
+                calls.append(await mcp_call(BACKEND, alt_tool, arguments, extra))
+        return {"calls": calls}
+
     return {
         "tools": [
             Tool(probe_connect, "remote_read"),
@@ -145,5 +218,6 @@ def create_agent(ctx) -> dict:
             Tool(probe_env, "workspace_read"),
             Tool(probe_files, "workspace_read"),
             Tool(list_pods, "remote_read"),
+            Tool(probe_mcp, "remote_read"),
         ]
     }
