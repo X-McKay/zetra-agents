@@ -22,3 +22,5 @@ tools:
     effect: workspace_read
   - name: list_pods
     effect: remote_read
+  - name: probe_mcp
+    effect: remote_read

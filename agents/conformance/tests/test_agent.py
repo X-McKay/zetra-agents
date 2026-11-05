@@ -65,3 +65,39 @@ def test_audiences_flattens_and_sorts_string_and_list_aud():
 
     claims = [{"aud": "agent-gateway"}, {"aud": ["b", "agent-gateway", ""]}, {"aud": None}, {}]
     assert audiences(claims) == ["agent-gateway", "b"]
+
+
+def test_mcp_outcome_is_one_word_per_call():
+    from conformance.agent import outcome
+
+    assert outcome(403, failed=True) == "deny"
+    assert outcome(429, failed=True) == "budget"
+    assert outcome(502, failed=True) == "http:502"
+    assert outcome(None, failed=True) == "error"
+    assert outcome(200, failed=False) == "ok"
+    assert outcome(200, failed=False, is_error=True) == "error"
+
+
+def test_probe_mcp_alternates_tools_and_passes_forged_headers(tmp_path, monkeypatch):
+    from conformance import agent
+
+    seen: list[tuple[str, dict]] = []
+
+    async def fake_call(backend, tool, arguments, extra_headers, **_):
+        seen.append((tool, extra_headers))
+        return "ok" if tool == "pods_list_in_namespace" else "deny"
+
+    monkeypatch.setattr(agent, "mcp_call", fake_call)
+    probe = next(t.fn for t in tools(tmp_path) if t.fn.__name__ == "probe_mcp")
+    result = asyncio.run(
+        probe(
+            "pods_list_in_namespace",
+            args='{"namespace": "tenant-test"}',
+            alt_tool="pods_get",
+            rounds="2",
+            headers='{"x-agent-principal": "mallory"}',
+        )
+    )
+    assert result == {"calls": ["ok", "deny", "ok", "deny"]}
+    assert [t for t, _ in seen] == ["pods_list_in_namespace", "pods_get"] * 2
+    assert all(h == {"x-agent-principal": "mallory"} for _, h in seen)
