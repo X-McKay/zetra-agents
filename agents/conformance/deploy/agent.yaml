@@ -16,7 +16,9 @@ spec:
     models:
       - backend: llm-main
         models: [Qwen3.6-35B-A3B-NVFP4]
-        budget: {tokensPerDay: 500000, tokensPerSession: 50000}
+        # The APS reserves the backend's maxModelLen (131072 for llm-main) per request
+        # (spec 3.7, 9.3 step 10), so the session budget must be at least that.
+        budget: {tokensPerDay: 5000000, tokensPerSession: 200000}
     mcp:
       - backend: kubernetes
         effect: remote_read
