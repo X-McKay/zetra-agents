@@ -1,0 +1,12 @@
+schema_version: 1
+name: conformance-budget-day-retry2
+entrypoint: budget_fixture.agent:create_agent
+instructions: budget_fixture/instructions.md
+model:
+  backend: llm-budget-conformance
+  name: conformance-byte-v1
+  max_tokens: 50
+  temperature: 0
+tools:
+  - name: budget_fixture
+    effect: workspace_write

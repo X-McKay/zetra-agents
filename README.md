@@ -140,3 +140,11 @@ release built against the old Agent stops being ready until a new one is cut.
 The platform is staged in Kubani and has not run on the cluster yet. The OpenShell POC
 under `legacy/` is still the investigator that has run there; its deploy recipe is
 `legacy/openshell-investigator/deploy/README.md`.
+
+Local installed-fixture checks must use a private `UV_CACHE_DIR` and
+`UV_LINK_MODE=copy`. Before replacing an installed SDK module, call
+`zetra_agents.verification.replace_installed_file(path, content)` from the tools
+project. It atomically replaces the directory entry; writing directly through a
+uv-installed path can overwrite a hardlinked shared cache or another environment.
+The helper has a real hardlink regression. Image validation still runs against
+its own installed SDK inside the release build; local checks do not replace it.

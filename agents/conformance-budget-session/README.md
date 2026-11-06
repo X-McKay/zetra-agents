@@ -3,10 +3,11 @@
 This image intentionally overrides its installed `agent_runtime.step` only. The
 unmodified SDK is preserved for standard manifest/factory validation. Image builds
 exercise the installed override and the normal CI contract; production runtime code
-is unchanged. Source and verification code must remain identical across the three
+is unchanged. Source and verification code must remain identical across the four
 budget identities. Each identity has its own manifest, signed release and budget.
 
-`conformance-budget-day` and the fixed `conformance-budget-day-retry` each have
+`conformance-budget-day` and the fixed `conformance-budget-day-retry` and
+`conformance-budget-day-retry2` each have
 exactly 2000 tokens/day; `conformance-budget-session`
 has exactly 1000 tokens/session. Both can call only llm-budget-conformance model
 conformance-byte-v1, whose server enforces input<=200/output<=100/total<=300 tokens.
