@@ -125,7 +125,7 @@ def test_every_agent_release_compiles_the_actual_deployment_policy(agent):
     assert artifacts["release"]["spec"]["approval"] == {"approved": False}
     assert len(artifacts["release"]["spec"]["policySha256"]) == 64
     assert all(entry["effect"] == "remote_read" for entry in artifacts["bundle"]["mcp"].values())
-    if agent.name == "conformance-checkpoint":
+    if agent.name in {"conformance-checkpoint", "conformance-performance"}:
         assert artifacts["bundle"]["mcp"] == {
             "kubernetes": {
                 "effect": "remote_read",
@@ -163,3 +163,19 @@ def test_transport_network_exception_is_exactly_scoped():
     assert "conformance-transport" in layout.NETWORK_ALLOWED
     assert "conformance-transport-prod" not in layout.NETWORK_ALLOWED
     assert "investigator" not in layout.NETWORK_ALLOWED
+
+
+def test_performance_fixture_preserves_normal_resources_and_narrow_capabilities():
+    agent = layout.find(REPO, "conformance-performance")
+    spec = agent.agent_cr()["spec"]
+    assert spec["runtime"] == {"cpu": "1", "memory": "1Gi", "ttlSeconds": 3600}
+    assert spec["identity"] == {"mode": "agent"}
+    assert spec["capabilities"]["models"][0]["budget"] == {"tokensPerDay": 1, "tokensPerSession": 1}
+    assert spec["capabilities"]["mcp"] == [
+        {
+            "backend": "kubernetes",
+            "effect": "remote_read",
+            "delegation": "inherit",
+            "tools": ["pods_list_in_namespace"],
+        }
+    ]
