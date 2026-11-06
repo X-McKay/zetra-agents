@@ -136,9 +136,12 @@ def test_every_agent_release_compiles_the_actual_deployment_policy(agent):
         }
 
 
-def test_daily_retry_fixture_preserves_exact_limits_and_shared_driver():
+@pytest.mark.parametrize(
+    "identity", ["conformance-budget-day-retry", "conformance-budget-day-retry2"]
+)
+def test_daily_retry_fixture_preserves_exact_limits_and_shared_driver(identity):
     original = layout.find(REPO, "conformance-budget-day")
-    retry = layout.find(REPO, "conformance-budget-day-retry")
+    retry = layout.find(REPO, identity)
     assert not layout.check(retry)
     assert retry.agent_cr()["spec"] == original.agent_cr()["spec"]
     assert retry.manifest()["model"] == original.manifest()["model"]
@@ -152,7 +155,7 @@ def test_daily_retry_fixture_preserves_exact_limits_and_shared_driver():
         "verify_image.py",
     ):
         assert (retry.root / filename).read_bytes() == (original.root / filename).read_bytes()
-    assert "conformance-budget-day-retry" in layout.NETWORK_ALLOWED
+    assert identity in layout.NETWORK_ALLOWED
     assert "conformance-budget-day-arbitrary" not in layout.NETWORK_ALLOWED
 
 

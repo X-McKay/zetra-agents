@@ -102,6 +102,7 @@ def test_budget_identity_source_parity():
     for name in (
         "conformance-budget-day",
         "conformance-budget-day-retry",
+        "conformance-budget-day-retry2",
         "conformance-budget-session",
     ):
         peer = own.parent / name
