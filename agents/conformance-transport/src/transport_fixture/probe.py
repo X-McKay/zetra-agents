@@ -10,6 +10,7 @@ import socket
 import ssl
 import tempfile
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -35,7 +36,13 @@ def classify_plaintext(data, *, reset):
     # An explicit TLS-only HTTP error is also valid, but an arbitrary 4xx is not.
     if data.startswith(b"HTTP/1.1 400 ") and b"plain HTTP request was sent to HTTPS port" in data:
         return "explicit_tls_required"
-    return "unexpected_http"
+    # RFC 5246 sections 6.2.1 and 7.2: one alert record, TLS 1.2 legacy
+    # version, exactly two bytes, fatal level. Intentionally allow only the
+    # decode_error(50) / unexpected_message(10) refusals relevant before a
+    # handshake. Close-notify, warning, unknown, trailing and partial data fail.
+    if len(data) == 7 and data[:6] == bytes.fromhex("150303000202") and data[6] in {10, 50}:
+        return "tls_fatal_alert"
+    return "unexpected_http" if data.startswith(b"HTTP/") else "unexpected_response"
 
 
 def plaintext(host=GATEWAY, port=PORT):
@@ -46,9 +53,24 @@ def plaintext(host=GATEWAY, port=PORT):
             stream.settimeout(3)
             stream.sendall(plaintext_request())
             try:
-                data, reset = stream.recv(4096), False
+                data, reset = b"", False
+                deadline = time.monotonic() + 3
+                # TCP reads can split records. Require EOF/reset within the
+                # existing timeout and bound, so a valid prefix cannot hide
+                # trailing application bytes on a later read.
+                while len(data) <= 4096:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError("transport receive deadline")
+                    stream.settimeout(remaining)
+                    chunk = stream.recv(4097 - len(data))
+                    if not chunk:
+                        break
+                    data += chunk
+                if len(data) > 4096:
+                    return {"result": "unexpected_response", "credential_free": True}
             except ConnectionResetError:
-                data, reset = b"", True
+                reset = True
             return {"result": classify_plaintext(data, reset=reset), "credential_free": True}
     except OSError as exc:
         return {"result": "error", "error_type": type(exc).__name__, "credential_free": True}

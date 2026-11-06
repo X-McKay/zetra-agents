@@ -138,3 +138,87 @@ def test_real_driver_uses_sdk_manifest_factory_before_importing_probe(tmp_path, 
     )
     step.execute({"boundary": 0, "task": {"transport_case": "tls"}}, tmp_path)
     assert calls == ["manifest", "factory", "probe"]
+
+
+@pytest.mark.parametrize("frame", ["15030300020232", "1503030002020a"])
+def test_complete_fatal_tls_alert_is_a_refusal(frame):
+    assert probe.classify_plaintext(bytes.fromhex(frame), reset=False) == "tls_fatal_alert"
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"arbitrary bytes",
+        bytes.fromhex("150303000202ff"),
+        bytes.fromhex("15030300020132"),
+        bytes.fromhex("15030400020232"),
+        bytes.fromhex("15030300020200"),
+        bytes.fromhex("1503030002025a"),
+        bytes.fromhex("16030300020232"),
+        bytes.fromhex("15030300030232"),
+        bytes.fromhex("150303000202"),
+        bytes.fromhex("1503030002023200"),
+        bytes.fromhex("1503030002023215030300020232"),
+    ],
+)
+def test_malformed_unknown_warning_or_nonfatal_alert_never_qualifies(data):
+    assert probe.classify_plaintext(data, reset=False) == "unexpected_response"
+
+
+@pytest.mark.parametrize(
+    "chunks,expected",
+    [
+        ([bytes.fromhex("150303"), bytes.fromhex("00020232"), b""], "tls_fatal_alert"),
+        ([bytes.fromhex("15030300020232"), b"HTTP/1.1 200 OK", b""], "unexpected_response"),
+        ([bytes.fromhex("15030300020232"), TimeoutError()], "error"),
+        ([b"x" * 4097], "unexpected_response"),
+        ([bytes.fromhex("150303000202"), ConnectionResetError()], "unexpected_response"),
+        ([bytes.fromhex("15030300020232"), ConnectionResetError()], "tls_fatal_alert"),
+    ],
+)
+def test_plaintext_reads_bounded_complete_stream_before_classifying(monkeypatch, chunks, expected):
+    class Stream:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def settimeout(self, timeout):
+            assert 0 < timeout <= 3
+
+        def sendall(self, request):
+            assert request == probe.plaintext_request()
+
+        def recv(self, size):
+            value = chunks.pop(0)
+            if isinstance(value, Exception):
+                raise value
+            return value
+
+    monkeypatch.setattr(probe.socket, "create_connection", lambda *a, **kw: Stream())
+    assert probe.plaintext()["result"] == expected
+
+
+def test_trickling_response_cannot_extend_receive_deadline(monkeypatch):
+    ticks = iter([0, 1, 4])
+    monkeypatch.setattr(probe.time, "monotonic", lambda: next(ticks))
+
+    class Stream:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def settimeout(self, timeout):
+            pass
+
+        def sendall(self, request):
+            pass
+
+        def recv(self, size):
+            return bytes.fromhex("15030300020232")
+
+    monkeypatch.setattr(probe.socket, "create_connection", lambda *a, **kw: Stream())
+    assert probe.plaintext()["result"] == "error"
