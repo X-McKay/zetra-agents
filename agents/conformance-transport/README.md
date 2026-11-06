@@ -25,3 +25,20 @@ The workspace contains only bounded statuses, certificate error codes and reques
 counts. T27's host capture is a separate operator action during an ordinary
 conformance Agent T4 session, gated before its first boundary. This fixture does
 not perform or authorize host capture and does not alone qualify T27.
+
+The refusal classifier also accepts one complete seven-byte TLS fatal alert:
+record type 21, legacy version 0x0303, payload length two, level two, and only
+unexpected_message(10) or decode_error(50). This intentionally narrow allowlist
+follows [RFC 5246](https://www.rfc-editor.org/rfc/rfc5246) and the gateway v1.7.0
+[rustls 0.23.46 alert writer](https://github.com/rustls/rustls/blob/v/0.23.46/rustls/src/common_state.rs).
+`15030300020232` is fatal decode_error. Warning, close-notify, unknown codes,
+wrong lengths/versions, partial records, and trailing bytes remain failures.
+The socket reads through EOF/reset within the existing three-second timeout and
+4096-byte bound; a matching prefix alone cannot qualify. Raw response bytes are
+never written to fixture output. Arbitrary non-HTTP bytes are `unexpected_response`.
+
+Run31 remains failed historical evidence: its host diagnostic does not prove
+what its sandbox received, and its capture never started. This source correction
+requires a fresh signed transport fixture release, installed-image verification,
+and a new coordinated exact-T4 capture before T27 can qualify. No host capture,
+image build or release was performed as part of the local regression tests.
