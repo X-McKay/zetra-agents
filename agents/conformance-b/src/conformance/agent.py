@@ -22,6 +22,7 @@ from agent_runtime.tools import Tool
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from conformance.fail_closed import probe_fail_closed
 from conformance.revocation import probe_revocation
 
 BACKEND = "kubernetes"
@@ -339,5 +340,6 @@ def create_agent(ctx) -> dict:
             Tool(probe_mcp, "remote_read"),
             Tool(probe_token_stash, "workspace_write"),
             Tool(probe_revocation, "remote_read"),
+            Tool(probe_fail_closed, "workspace_write"),
         ]
     }

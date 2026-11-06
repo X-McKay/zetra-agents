@@ -28,3 +28,5 @@ tools:
     effect: workspace_write
   - name: probe_revocation
     effect: remote_read
+  - name: probe_fail_closed
+    effect: workspace_write

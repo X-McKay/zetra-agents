@@ -11,3 +11,13 @@ sends bounded MCP initialize requests for up to 240 seconds, continuing through
 The in-cluster harness reads actual gateway/APS logs while the probe runs and
 temporarily disables or drifts only this fixture Agent. The tool registration is
 part of the signed manifest and requires a new reviewed release.
+
+`probe_fail_closed` is the T17 fixture. It schedules exactly five independent MCP
+initialize requests per second for 60–240 seconds and pins one token with enough
+remaining lifetime. A request timeout remains an error; responses are never
+retried or normalized into a denial. It writes every sequence, trace ID, timing,
+status and safe error class to `/sandbox/workspace/t17/requests.json` (0600), with
+no token, headers or response bodies. The model receives only a compact count and
+artifact path. The read-only runner harness verifies the accepted snapshot,
+gateway logs and explicit operator scale receipts; this fixture does not scale
+the APS. A new signed release is required before live T17 qualification.
