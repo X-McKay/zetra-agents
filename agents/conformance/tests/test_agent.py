@@ -101,3 +101,50 @@ def test_probe_mcp_alternates_tools_and_passes_forged_headers(tmp_path, monkeypa
     assert result == {"calls": ["ok", "deny", "ok", "deny"]}
     assert [t for t, _ in seen] == ["pods_list_in_namespace", "pods_get"] * 2
     assert all(h == {"x-agent-principal": "mallory"} for _, h in seen)
+
+
+def test_probe_token_stash_writes_the_token_to_the_workspace_and_reports_no_token(
+    tmp_path, monkeypatch
+):
+    from conformance import agent
+
+    token = jwt({"sub": "x", "aud": ["agent-gateway", "agent-policy-service"]})
+    monkeypatch.setattr(agent, "TOKEN_STASH", tmp_path / "t26" / "token")
+    monkeypatch.setattr(agent, "identity", lambda: types.SimpleNamespace(token=lambda: token))
+    probe = next(t.fn for t in tools(tmp_path) if t.fn.__name__ == "probe_token_stash")
+    result = asyncio.run(probe())
+    assert (tmp_path / "t26" / "token").read_text() == token
+    assert result["mode"] == "0o600" and result["aud"] == ["agent-gateway", "agent-policy-service"]
+    assert token not in json.dumps(result)
+
+
+def test_probe_http_can_present_the_stashed_token(tmp_path, monkeypatch):
+    from conformance import agent
+
+    stash = tmp_path / "t26" / "token"
+    stash.parent.mkdir()
+    stash.write_text("stashed-token\n")
+    monkeypatch.setattr(agent, "TOKEN_STASH", stash)
+    monkeypatch.setattr(agent, "gateway_url", lambda: "https://gateway.test")
+    monkeypatch.setattr(agent, "tls_verify", lambda: False)
+    seen = {}
+
+    class Client:
+        def __init__(self, **kw):
+            seen.update(kw)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def request(self, method, path, **kw):
+            seen["request"] = (method, path, kw)
+            return types.SimpleNamespace(status_code=403, text='{"error":"forbidden"}')
+
+    monkeypatch.setattr(agent.httpx, "Client", Client)
+    probe = next(t.fn for t in tools(tmp_path) if t.fn.__name__ == "probe_http")
+    result = asyncio.run(probe("mcp.agents.internal", "/kubernetes/mcp", body="{}", auth="stash"))
+    assert result["status"] == 403 and seen["auth"] is None
+    assert seen["request"][2]["headers"]["Authorization"] == "Bearer stashed-token"

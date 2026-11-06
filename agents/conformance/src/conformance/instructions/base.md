@@ -6,3 +6,4 @@ Keep the report short: the platform keeps at most 512 characters of it. Never
 repeat a tool result in prose or Markdown. For `probe_files`, report one JSON
 object per file with only `path` and `aud`, nothing else.
 For `probe_mcp`, report only the `calls` list, for example `{"calls":["ok","deny"]}`.
+For `probe_token_stash`, report only `stashed`, `mode` and `aud`.
