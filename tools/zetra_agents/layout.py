@@ -13,8 +13,9 @@ import yaml
 FORBIDDEN_IMPORTS = {"httpx", "requests", "urllib", "socket", "aiohttp", "subprocess"}
 NAME = re.compile(r"^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$")
 REQUIRED = ("agent.yaml", "deploy/agent.yaml", "Dockerfile", "pyproject.toml", "uv.lock")
-# The conformance agent's probes attempt what every other agent must not (spec 15.1).
-NETWORK_ALLOWED = {"conformance"}
+# The conformance agent's probes attempt what every other agent must not (spec 15.1);
+# conformance-b is the same code under a second identity (T26).
+NETWORK_ALLOWED = {"conformance", "conformance-b"}
 
 
 @dataclass(frozen=True)

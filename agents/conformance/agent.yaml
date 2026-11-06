@@ -24,3 +24,5 @@ tools:
     effect: remote_read
   - name: probe_mcp
     effect: remote_read
+  - name: probe_token_stash
+    effect: workspace_write

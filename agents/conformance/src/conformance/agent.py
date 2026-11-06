@@ -28,6 +28,10 @@ MAX_BODY = 4096
 JWT = re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")
 # T3: where a token could be hiding.
 TOKEN_ROOTS = ("/var/run/secrets", "/sandbox/state")
+# T26: the workspace is the one thing a sandbox writes that leaves it unredacted (the
+# runner's snapshot excludes state/token.json but not the workspace), so the harness can
+# take a token from here to another sandbox. Only the conformance agent may do this.
+TOKEN_STASH = pathlib.Path("/sandbox/workspace/t26/token")
 
 
 def claims_of(token: str) -> dict:
@@ -139,8 +143,12 @@ def create_agent(ctx) -> dict:
         auth: str = "bearer",
         form: str = "",
     ) -> dict:
-        """Send one request to the gateway (T4, T5, T8, T19). JWTs in the reply become claims."""
+        """Send one request to the gateway (T4, T5, T8, T19, T26). JWTs in the reply become
+        claims. `auth` is `bearer` (this sandbox's token), `none`, or `stash` (the token a
+        previous session left in the workspace, restored into this one: T26)."""
         send = {"Host": host_header, **json.loads(headers)}
+        if auth == "stash":
+            send["Authorization"] = f"Bearer {TOKEN_STASH.read_text(encoding='utf-8').strip()}"
         kwargs: dict = {"headers": send}
         if form:
             kwargs["data"] = json.loads(form)
@@ -192,6 +200,20 @@ def create_agent(ctx) -> dict:
         result = await ctx.mcp(BACKEND, "pods_list_in_namespace", {"namespace": namespace})
         return {"text": result["text"][:MAX_BODY]}
 
+    async def probe_token_stash() -> dict:
+        """Write the cached agent access token into the workspace (T26): the next snapshot
+        carries it out so the harness can present it from another sandbox. Reports only
+        the audience and the file mode, never the token."""
+        token = identity().token()
+        TOKEN_STASH.parent.mkdir(parents=True, exist_ok=True)
+        TOKEN_STASH.touch(mode=0o600)
+        TOKEN_STASH.write_text(token, encoding="utf-8")
+        return {
+            "stashed": str(TOKEN_STASH),
+            "mode": oct(TOKEN_STASH.stat().st_mode & 0o777),
+            "aud": audiences([claims_of(token)]),
+        }
+
     async def probe_mcp(
         tool: str,
         args: str = "{}",
@@ -219,5 +241,6 @@ def create_agent(ctx) -> dict:
             Tool(probe_files, "workspace_read"),
             Tool(list_pods, "remote_read"),
             Tool(probe_mcp, "remote_read"),
+            Tool(probe_token_stash, "workspace_write"),
         ]
     }
