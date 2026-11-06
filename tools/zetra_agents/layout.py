@@ -19,6 +19,7 @@ NETWORK_ALLOWED = {
     "conformance",
     "conformance-b",
     "conformance-budget-day",
+    "conformance-budget-day-retry",
     "conformance-budget-session",
 }
 
