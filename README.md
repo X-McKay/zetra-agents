@@ -9,7 +9,9 @@ manifests and capabilities, and the signed releases Kubani consumes.
 `conformance-protocol` is the dedicated T25 wire-protocol fixture. Its Dockerfile
 explicitly replaces the installed `agent_runtime.step` module and runs
 `verify_image.py` using that installed module before the image can build. It keeps
-the normal wait process and sandbox shape. The fixture makes no model/network
+the original SDK manifest/factory validators, normal wait process and sandbox
+shape. The standard image CI check remains unchanged and a mismatched manifest
+must still fail. The fixture makes no model/network
 calls: a task selects a healthy completion or a checkpoint followed by 10 MiB
 stdout, invalid JSON, a wrong boundary number, done:true with rc0, or a permanent
 hang. The ordinary agent factory fails visibly if the SDK override is missing.

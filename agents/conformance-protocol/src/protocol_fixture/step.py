@@ -15,6 +15,20 @@ PROTOCOL_FIXTURE_OVERRIDE = "conformance-protocol-v1"
 FAULTS = {"stdout_10mib", "invalid_json", "wrong_boundary", "done_true_rc0", "hang"}
 
 
+def load_manifest():
+    """Keep the normal image CI contract, using the unmodified installed SDK."""
+    from agent_runtime._protocol_sdk_step import load_manifest as load
+
+    return load()
+
+
+def build_agent(manifest):
+    """Validate the factory/tools without executing the SDK boundary driver."""
+    from agent_runtime._protocol_sdk_step import build_agent as build
+
+    return build(manifest)
+
+
 def document(boundary, done=False, summary="checkpoint accepted"):
     return {
         "boundary": boundary,

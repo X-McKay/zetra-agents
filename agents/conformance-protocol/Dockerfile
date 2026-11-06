@@ -22,8 +22,9 @@ RUN apt-get update && apt-get -y upgrade --no-install-recommends \
 COPY --from=build /app/.venv /app/.venv
 COPY agent.yaml /app/agent.yaml
 COPY src/protocol_fixture /app/protocol_fixture
-# Explicit adversarial SDK override for this signed fixture only.
-RUN /app/.venv/bin/python -c "import agent_runtime.step, pathlib, shutil; shutil.copyfile('/app/protocol_fixture/step.py', agent_runtime.step.__file__); shutil.rmtree(pathlib.Path(agent_runtime.step.__file__).parent / '__pycache__', ignore_errors=True)"
+# Preserve the unmodified SDK's manifest/factory validators for normal image CI.
+# Only this fixture's boundary driver is replaced; no validation is skipped.
+RUN /app/.venv/bin/python -c "import agent_runtime.step, pathlib, shutil; installed = pathlib.Path(agent_runtime.step.__file__); shutil.copyfile(installed, installed.with_name('_protocol_sdk_step.py')); shutil.copyfile('/app/protocol_fixture/step.py', installed); shutil.rmtree(installed.parent / '__pycache__', ignore_errors=True)"
 RUN /app/.venv/bin/python -I -c "import agent_runtime.step as step; assert step.PROTOCOL_FIXTURE_OVERRIDE == 'conformance-protocol-v1'; assert 'site-packages/agent_runtime/step.py' in step.__file__"
 COPY verify_image.py /tmp/verify_protocol_image.py
 RUN /app/.venv/bin/python -I /tmp/verify_protocol_image.py && rm /tmp/verify_protocol_image.py

@@ -104,3 +104,30 @@ def test_factory_refuses_unpatched_sdk_and_declares_exact_manifest_tools(monkeyp
     assert {t.fn.__name__: t.effect for t in create_agent(None)["tools"]} == {
         t["name"]: t["effect"] for t in manifest["tools"]
     }
+
+
+def test_override_keeps_real_sdk_manifest_validation(monkeypatch, tmp_path):
+    import copy
+
+    import agent_runtime
+    from agent_runtime import step as sdk_step
+
+    from protocol_fixture import step as fixture_step
+
+    monkeypatch.setitem(sys.modules, "agent_runtime._protocol_sdk_step", sdk_step)
+    monkeypatch.setattr(agent_runtime, "step", fixture_step)
+    monkeypatch.setenv("AGENT_APP_DIR", str(tmp_path))
+    (tmp_path / "agent.yaml").write_text((STEP.parents[2] / "agent.yaml").read_text())
+    (tmp_path / "protocol_fixture").mkdir()
+    (tmp_path / "protocol_fixture/instructions.md").write_text("Protocol fixture")
+    manifest = fixture_step.load_manifest()
+    _, tools = fixture_step.build_agent(manifest)
+    assert set(tools) == {"protocol_fixture"}
+    for invalid in (
+        [{"name": "unrelated", "effect": "workspace_read"}],
+        [{"name": "protocol_fixture", "effect": "workspace_write"}],
+    ):
+        mismatch = copy.deepcopy(manifest)
+        mismatch["tools"] = invalid
+        with pytest.raises(ValueError, match="do not match"):
+            fixture_step.build_agent(mismatch)

@@ -4,6 +4,7 @@ Run with the image interpreter. No pytest/dev packages, model, registry or clust
 are needed. A normal SDK step cannot satisfy these wire-level assertions.
 """
 
+import copy
 import json
 import os
 import subprocess
@@ -15,6 +16,16 @@ from agent_runtime import step
 
 assert step.PROTOCOL_FIXTURE_OVERRIDE == "conformance-protocol-v1"
 assert "site-packages/agent_runtime/step.py" in step.__file__
+manifest = step.load_manifest()
+assert set(step.build_agent(manifest)[1]) == {"protocol_fixture"}
+mismatch = copy.deepcopy(manifest)
+mismatch["tools"][0]["name"] = "unrelated"
+try:
+    step.build_agent(mismatch)
+except ValueError as error:
+    assert "do not match" in str(error)
+else:
+    raise AssertionError("SDK manifest mismatch validation was bypassed")
 
 with tempfile.TemporaryDirectory() as root:
     for case in ("control", *sorted(step.FAULTS)):
