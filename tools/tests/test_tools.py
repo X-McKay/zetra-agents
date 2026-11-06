@@ -110,3 +110,27 @@ def test_check_rejects_network_imports_and_mismatches(tmp_path):
     assert any("imports httpx" in p for p in problems)
     assert any("imports socket" in p for p in problems)
     assert any("model is not granted" in p for p in problems)
+
+
+@pytest.mark.parametrize("agent", layout.all_agents(REPO), ids=lambda a: a.name)
+def test_every_agent_release_compiles_the_actual_deployment_policy(agent):
+    artifacts = release.build(
+        agent,
+        image=f"registry.almckay.io/agents/{agent.name}@sha256:" + "a9" * 32,
+        revision="0" * 40,
+        mcp_resource_base=BASE,
+        trust_domain="cluster.local",
+        date=dt.date(2026, 11, 6),
+    )
+    assert artifacts["release"]["spec"]["approval"] == {"approved": False}
+    assert len(artifacts["release"]["spec"]["policySha256"]) == 64
+    assert all(entry["effect"] == "remote_read" for entry in artifacts["bundle"]["mcp"].values())
+    if agent.name == "conformance-checkpoint":
+        assert artifacts["bundle"]["mcp"] == {
+            "kubernetes": {
+                "effect": "remote_read",
+                "tools": ["pods_list_in_namespace"],
+                "delegation": "agent",
+                "resource": BASE + "/kubernetes/mcp",
+            }
+        }

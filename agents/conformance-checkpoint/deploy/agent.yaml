@@ -14,5 +14,7 @@ spec:
         budget: {tokensPerDay: 5000000, tokensPerSession: 200000}
     mcp:
       - backend: kubernetes
+        effect: remote_read
+        delegation: inherit
         tools: [pods_list_in_namespace]
   runtime: {cpu: "1", memory: 1Gi, ttlSeconds: 3600}
