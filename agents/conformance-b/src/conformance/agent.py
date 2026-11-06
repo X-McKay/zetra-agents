@@ -13,6 +13,7 @@ import pathlib
 import re
 import socket
 import time
+import uuid
 from datetime import timedelta
 
 import httpx
@@ -24,6 +25,8 @@ from mcp.client.streamable_http import streamable_http_client
 BACKEND = "kubernetes"
 CONNECT_TIMEOUT = 2.0
 MCP_CALL_TIMEOUT = 25.0
+MCP_BATCH_TIMEOUT = 10.0
+MODEL_SETTLE_SECONDS = 6.0  # more than the five-second settlement delivery bound
 MAX_BODY = 4096
 JWT = re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")
 # T3: where a token could be hiding.
@@ -66,7 +69,7 @@ def redact(text: str) -> tuple[str, list[dict]]:
 
 
 def outcome(status: int | None, failed: bool, is_error: bool = False) -> str:
-    """One word per MCP call, so a T19 report of ten calls fits the 512-character summary."""
+    """Compact semantic outcome; structured evidence retains the HTTP status separately."""
     if failed:
         if status == 403:
             return "deny"
@@ -82,19 +85,45 @@ async def mcp_call(
     arguments: dict,
     extra_headers: dict,
     *,
+    token: str | None = None,
+    observations: list[dict] | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> str:
     """One MCP tools/call through the gateway with the agent's bearer, the way the SDK does it,
     plus extra request headers so a test can send forged x-agent-* values (T8). The outcome is a
     word; the status the gateway answered is the fact, however the transport wraps it."""
     verify = tls_verify()
-    auth = BearerAuth(identity())
+    auth = BearerAuth(identity()) if token is None else None
+    status = None
+
+    async def observe(response):
+        nonlocal status
+        request = response.request
+        if request.method != "POST":
+            return
+        body = json.loads(request.content)
+        if body.get("method") != "tools/call":
+            return
+        status = response.status_code
+        if observations is not None:
+            observations.append(
+                {
+                    "tool": body["params"]["name"],
+                    "status": status,
+                    "trace_id": request.headers.get("traceparent", "").split("-")[1],
+                }
+            )
+
+    headers = {"Host": env("AGENT_MCP_HOST"), **extra_headers}
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
     try:
         async with (
             asyncio.timeout(MCP_CALL_TIMEOUT),
             httpx.AsyncClient(
-                headers={"Host": env("AGENT_MCP_HOST"), **extra_headers},
+                headers=headers,
                 auth=auth,
+                event_hooks={"response": [observe]},
                 verify=verify,
                 timeout=15.0,
                 follow_redirects=False,
@@ -110,8 +139,55 @@ async def mcp_call(
             await session.initialize()
             result = await session.call_tool(tool, arguments)
     except Exception:  # noqa: BLE001 - the status is the fact; the transport's wrapping varies
-        return outcome(auth.status, failed=True)
-    return outcome(auth.status, failed=False, is_error=bool(result.isError))
+        return outcome(status, failed=True)
+    return outcome(status, failed=False, is_error=bool(result.isError))
+
+
+def traceparent() -> str:
+    return f"00-{uuid.uuid4().hex}-{uuid.uuid4().hex[:16]}-01"
+
+
+async def model_route_calls(token: str, *, transport=None) -> list[dict]:
+    """Two main/fast cycles with one fixed token; preserve every refusal, never retry.
+
+    Wait for the preceding model reservation to settle before another allowed request,
+    including the driver model call before this tool and its final call afterwards.
+    These waits are outside T19's ten-second MCP window.
+    """
+    records = []
+    async with httpx.AsyncClient(
+        base_url=gateway_url(),
+        verify=tls_verify(),
+        timeout=60.0,
+        follow_redirects=False,
+        headers={"Host": env("AGENT_INFERENCE_HOST"), "Authorization": f"Bearer {token}"},
+        transport=transport,
+    ) as http:
+        for _ in range(2):
+            await asyncio.sleep(MODEL_SETTLE_SECONDS)
+            for backend, model in (
+                ("llm-main", "Qwen3.6-35B-A3B-NVFP4"),
+                ("llm-fast", "Qwen/Qwen3.5-0.8B"),
+            ):
+                trace = traceparent()
+                record = {"backend": backend, "trace_id": trace.split("-")[1], "status": None}
+                try:
+                    response = await http.post(
+                        f"/models/{backend}/v1/chat/completions",
+                        headers={"traceparent": trace},
+                        json={
+                            "model": model,
+                            "messages": [{"role": "user", "content": "Say OK."}],
+                            "max_tokens": 1,
+                            "stream": False,
+                        },
+                    )
+                    record["status"] = response.status_code
+                except httpx.HTTPError as exc:
+                    record["error"] = type(exc).__name__
+                records.append(record)
+        await asyncio.sleep(MODEL_SETTLE_SECONDS)
+    return records
 
 
 def create_agent(ctx) -> dict:
@@ -220,18 +296,36 @@ def create_agent(ctx) -> dict:
         alt_tool: str = "",
         rounds: str = "1",
         headers: str = "{}",
+        model_routes: str = "false",
     ) -> dict:
         """Call MCP tools on the kubernetes backend through the gateway (T8, T19): `tool`, then
         `alt_tool` if given, `rounds` times, with any extra request `headers` (JSON). Reports one
         word per call (ok, deny, budget, error, http:<status>) and never a token."""
         arguments = json.loads(args)
         extra = json.loads(headers)
-        calls: list[str] = []
-        for _ in range(int(rounds)):
-            calls.append(await mcp_call(BACKEND, tool, arguments, extra))
-            if alt_tool:
-                calls.append(await mcp_call(BACKEND, alt_tool, arguments, extra))
-        return {"calls": calls}
+        token = identity().token()  # one token for the whole batch; no automatic 401 refresh
+        result = {"calls": [], "requests": [], "token_jti": claims_of(token).get("jti")}
+        started = time.monotonic()
+        try:
+            async with asyncio.timeout(MCP_BATCH_TIMEOUT):
+                for _ in range(int(rounds)):
+                    for name in [tool] + ([alt_tool] if alt_tool else []):
+                        result["calls"].append(
+                            await mcp_call(
+                                BACKEND,
+                                name,
+                                arguments,
+                                {**extra, "traceparent": traceparent()},
+                                token=token,
+                                observations=result["requests"],
+                            )
+                        )
+        except TimeoutError:
+            result["error"] = "TimeoutError"
+        result["elapsed_ms"] = (time.monotonic() - started) * 1000
+        if model_routes == "true":
+            result["models"] = await model_route_calls(token)
+        return result
 
     return {
         "tools": [

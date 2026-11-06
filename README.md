@@ -84,6 +84,14 @@ A tag `<agent>/v<version>` runs `.github/workflows/release.yml` on Kubani's
 7. Publish the files as a GitHub release.
 
 Fulcio accepts only GitHub Actions tokens, so releases cannot be signed from a laptop.
+
+The conformance agent's T19 probe pins one token for 50 MCP allow/deny cycles,
+records the actual tools/call HTTP statuses and monotonic duration, and can then
+run two main/fast model-route cycles with six-second settlement pauses. Its raw
+tool result is retained in the runner's accepted snapshot; the model's compact
+summary is not the qualification evidence. HTTP 429s and timeouts are preserved
+as failures, never retried into passes. `conformance-b` keeps the same probe code
+for source parity, but only the primary conformance release is needed for T19.
 cosign, syft and grype come from `registry.almckay.io/mirror/` by digest (see the
 workflow's `env`); grype downloads its vulnerability database on each run.
 
