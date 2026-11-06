@@ -1,0 +1,12 @@
+schema_version: 1
+name: conformance-protocol
+entrypoint: protocol_fixture.agent:create_agent
+instructions: protocol_fixture/instructions.md
+model:
+  backend: llm-main
+  name: Qwen3.6-35B-A3B-NVFP4
+  max_tokens: 1
+  temperature: 0
+tools:
+  - name: protocol_fixture
+    effect: workspace_read
