@@ -154,3 +154,9 @@ def test_daily_retry_fixture_preserves_exact_limits_and_shared_driver():
         assert (retry.root / filename).read_bytes() == (original.root / filename).read_bytes()
     assert "conformance-budget-day-retry" in layout.NETWORK_ALLOWED
     assert "conformance-budget-day-arbitrary" not in layout.NETWORK_ALLOWED
+
+
+def test_transport_network_exception_is_exactly_scoped():
+    assert "conformance-transport" in layout.NETWORK_ALLOWED
+    assert "conformance-transport-prod" not in layout.NETWORK_ALLOWED
+    assert "investigator" not in layout.NETWORK_ALLOWED
