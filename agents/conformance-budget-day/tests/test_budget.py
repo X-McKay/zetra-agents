@@ -97,10 +97,13 @@ def test_daily_calls_are_exact_and_restart_wait_precedes_final_retry(tmp_path):
     assert 120 in delays and saved["usage"] == 1800 and rc == 2
 
 
-def test_two_identity_source_parity():
+def test_budget_identity_source_parity():
     own = Path(__file__).parents[1]
-    peer = own.parent / (
-        "conformance-budget-session" if own.name.endswith("day") else "conformance-budget-day"
-    )
-    for f in ("src/budget_fixture/step.py", "src/budget_fixture/agent.py", "verify_image.py"):
-        assert (own / f).read_bytes() == (peer / f).read_bytes()
+    for name in (
+        "conformance-budget-day",
+        "conformance-budget-day-retry",
+        "conformance-budget-session",
+    ):
+        peer = own.parent / name
+        for f in ("src/budget_fixture/step.py", "src/budget_fixture/agent.py", "verify_image.py"):
+            assert (own / f).read_bytes() == (peer / f).read_bytes()

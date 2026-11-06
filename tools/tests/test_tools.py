@@ -134,3 +134,23 @@ def test_every_agent_release_compiles_the_actual_deployment_policy(agent):
                 "resource": BASE + "/kubernetes/mcp",
             }
         }
+
+
+def test_daily_retry_fixture_preserves_exact_limits_and_shared_driver():
+    original = layout.find(REPO, "conformance-budget-day")
+    retry = layout.find(REPO, "conformance-budget-day-retry")
+    assert not layout.check(retry)
+    assert retry.agent_cr()["spec"] == original.agent_cr()["spec"]
+    assert retry.manifest()["model"] == original.manifest()["model"]
+    assert retry.agent_cr()["spec"]["capabilities"]["models"][0]["budget"] == {
+        "tokensPerDay": 2000,
+        "tokensPerSession": 200000,
+    }
+    for filename in (
+        "src/budget_fixture/step.py",
+        "src/budget_fixture/agent.py",
+        "verify_image.py",
+    ):
+        assert (retry.root / filename).read_bytes() == (original.root / filename).read_bytes()
+    assert "conformance-budget-day-retry" in layout.NETWORK_ALLOWED
+    assert "conformance-budget-day-arbitrary" not in layout.NETWORK_ALLOWED
