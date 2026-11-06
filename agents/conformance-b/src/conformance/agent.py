@@ -22,6 +22,8 @@ from agent_runtime.tools import Tool
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from conformance.revocation import probe_revocation
+
 BACKEND = "kubernetes"
 CONNECT_TIMEOUT = 2.0
 MCP_CALL_TIMEOUT = 25.0
@@ -336,5 +338,6 @@ def create_agent(ctx) -> dict:
             Tool(list_pods, "remote_read"),
             Tool(probe_mcp, "remote_read"),
             Tool(probe_token_stash, "workspace_write"),
+            Tool(probe_revocation, "remote_read"),
         ]
     }
