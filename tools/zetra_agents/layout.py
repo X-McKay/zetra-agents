@@ -21,6 +21,7 @@ NETWORK_ALLOWED = {
     "conformance-budget-day",
     "conformance-budget-day-retry",
     "conformance-budget-session",
+    "conformance-transport",  # T27 credential-free wire and foreign-CA negatives only
 }
 
 
