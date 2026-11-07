@@ -5,6 +5,9 @@ uses agent identity in tenant-test and calls only `postgres-admin/execute_sql`.
 It has no database credentials, direct network client, process launcher, schedule
 or automatic repair path. Kubani owns backend permissions and applied resources;
 standard release assets remain unapproved until a separate reviewed change.
+The model budget is1,000,000tokens/day and200,000/session. The session limit
+covers llm-main's existing131,072-token first-request reservation; reservation
+and ledger enforcement are unchanged.
 
 Four argument-free tools read only `db_admin_monitor.instance_health`,
 `connection_summary`, `database_stats` and `blocking_summary`. Each SQL string is

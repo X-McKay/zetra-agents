@@ -12,7 +12,7 @@ spec:
     models:
       - backend: llm-main
         models: [Qwen3.6-35B-A3B-NVFP4]
-        budget: {tokensPerDay: 1000000, tokensPerSession: 100000}
+        budget: {tokensPerDay: 1000000, tokensPerSession: 200000}
     mcp:
       - backend: postgres-admin
         effect: remote_read

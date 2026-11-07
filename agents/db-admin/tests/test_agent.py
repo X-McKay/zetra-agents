@@ -44,7 +44,7 @@ def test_manifest_grants_only_fixed_diagnostics_without_delegation():
     assert manifest["model"]["max_tokens"] == 1024
     assert cr["spec"]["capabilities"]["models"][0]["budget"] == {
         "tokensPerDay": 1000000,
-        "tokensPerSession": 100000,
+        "tokensPerSession": 200000,
     }
 
 
