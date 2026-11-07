@@ -463,3 +463,32 @@ def test_nonstandard_json_constant_rejected(inputs, capsys):
         ),
     )
     assert "input" in codes(run(inputs, capsys))
+
+
+def test_source_python_syntax_error_is_sanitized(inputs, capsys):
+    path = inputs[0] / "agents/db-admin/src/broken.py"
+    path.parent.mkdir()
+    path.write_text("def private_source_marker(\n")
+    result = run(inputs, capsys)
+    assert {
+        "code": "input",
+        "path": "source.layout",
+        "message": "cannot read or validate input",
+    } in result["errors"]
+    assert "private_source_marker" not in json.dumps(result)
+    assert capsys.readouterr().err == ""
+
+
+def test_source_multidocument_layout_error_is_sanitized(inputs, capsys):
+    path = inputs[0] / "agents/db-admin/deploy/agent.yaml"
+    path.write_text(
+        path.read_text() + "---\nkind: ConfigMap\ndata: {private_yaml_marker: hidden}\n"
+    )
+    result = run(inputs, capsys)
+    assert {
+        "code": "input",
+        "path": "source.layout",
+        "message": "cannot read or validate input",
+    } in result["errors"]
+    assert "private_yaml_marker" not in json.dumps(result)
+    assert capsys.readouterr().err == ""

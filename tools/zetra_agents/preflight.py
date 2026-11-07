@@ -172,6 +172,8 @@ def check(repo: Path, kubani: Path, agent: str, tag: str) -> dict[str, Any]:
             KeyError,
             AttributeError,
             RecursionError,
+            SyntaxError,
+            yaml.YAMLError,
             subprocess.SubprocessError,
         ):
             error("input", path, "cannot read or validate input")
