@@ -1,0 +1,20 @@
+schema_version: 1
+name: db-admin
+entrypoint: db_admin.agent:create_agent
+instructions: db_admin/instructions/base.md
+model:
+  backend: llm-main
+  name: Qwen3.6-35B-A3B-NVFP4
+  max_tokens: 1024
+  temperature: 0
+tools:
+  - name: inspect_instance
+    effect: remote_read
+  - name: inspect_connections
+    effect: remote_read
+  - name: inspect_database_stats
+    effect: remote_read
+  - name: inspect_blocking
+    effect: remote_read
+  - name: write_report
+    effect: workspace_write
