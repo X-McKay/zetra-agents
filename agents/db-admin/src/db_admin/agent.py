@@ -66,13 +66,6 @@ SQL = {
     for key, view in VIEWS.items()
 }
 EVIDENCE_NAME = re.compile(r"(instance|connections|database_stats|blocking)-[a-f0-9]{64}\.json")
-NARRATIVE_FORBIDDEN = re.compile(
-    r"evidence/|```|`|\bSELECT\b[\s\S]*\bFROM\b|\bEXPLAIN\s+ANALYZE\b|"
-    r"\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE\s+\w+\s+SET|DROP\s+(?:TABLE|DATABASE))\b|"
-    r"\bhealthy\b|\ball clear\b|\bno issues\b|\bno problems\b|"
-    r"postgres(?:ql)?://|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+",
-    re.IGNORECASE,
-)
 
 
 class InvalidResult(ValueError):
@@ -346,69 +339,153 @@ def create_agent(ctx) -> dict:
         """Read redacted blocking counts and ages; actual lock wait is distinct from query/transaction age."""
         return await observe("blocking")
 
-    async def write_report(findings: str, advice: str, unknowns: str) -> dict:
-        """Write bounded advisory findings/advice/unknowns; exact evidence links and coverage are added."""
-        parts = (findings, advice, unknowns)
-        if (
-            any(
-                not isinstance(p, str)
-                or not p.strip()
-                or len(p.encode()) > 2000
-                or NARRATIVE_FORBIDDEN.search(p)
-                for p in parts
-            )
-            or len(" ".join(parts).split()) > 300
-        ):
+    async def write_report() -> dict:
+        """Write facts and fixed follow-ups from all four attempted checks; accepts no narrative."""
+        files = evidence_files()
+        latest, indices = {}, set()
+        try:
+            for path in files:
+                if path.stat().st_size > 24000:
+                    raise InvalidResult()
+                raw = path.read_bytes()
+                if not path.stem.endswith(hashlib.sha256(raw).hexdigest()):
+                    raise InvalidResult()
+                record = json_object(raw.decode())
+                if (
+                    set(record)
+                    != {
+                        "schema",
+                        "check",
+                        "collected_at",
+                        "status",
+                        "rows",
+                        "error",
+                        "unknowns",
+                        "observation_index",
+                    }
+                    or record["schema"] != "db-admin-observation-v1"
+                    or record["check"] != EVIDENCE_NAME.fullmatch(path.name).group(1)
+                    or type(record["observation_index"]) is not int
+                    or not 1 <= record["observation_index"] <= MAX_EVIDENCE
+                    or record["observation_index"] in indices
+                    or not isinstance(record["rows"], list)
+                    or len(record["rows"]) > 16
+                    or not isinstance(record["unknowns"], list)
+                    or record["status"] not in {"available", "unavailable"}
+                    or (record["status"] == "available" and record["error"] is not None)
+                    or (
+                        record["status"] == "unavailable"
+                        and (
+                            record["rows"] != []
+                            or record["error"] not in {"invalid_result", "mcp_unavailable"}
+                        )
+                    )
+                ):
+                    raise InvalidResult()
+                timestamp(record["collected_at"])
+                indices.add(record["observation_index"])
+                check = record["check"]
+                if (
+                    check not in latest
+                    or record["observation_index"] > latest[check][0]["observation_index"]
+                ):
+                    latest[check] = (record, path)
+        except (ValueError, TypeError, KeyError, UnicodeError):
+            return {"status": "unavailable", "error": "invalid_evidence"}
+        missing = ["inspect_" + check for check in VIEWS if check not in latest]
+        if missing:
             return {
                 "status": "unavailable",
-                "error": "invalid_report",
-                "hint": "Use at most 300 words, no SQL, health certification or evidence paths.",
+                "error": "missing_checks",
+                "missing_tools": missing,
+                "hint": "Run "
+                + ", ".join(missing)
+                + " before write_report. Unavailable observations still record attempts.",
             }
-        files = evidence_files()
-        if not files:
-            return {"status": "unavailable", "error": "missing_evidence"}
-        latest, notes, links = {}, set(), []
-        for path in files:
-            if path.stat().st_size > 24000:
-                return {"status": "unavailable", "error": "invalid_evidence"}
-            raw = path.read_bytes()
-            if not path.stem.endswith(hashlib.sha256(raw).hexdigest()):
-                return {"status": "unavailable", "error": "invalid_evidence"}
-            record = json_object(raw.decode())
-            check = record["check"]
-            if (
-                check not in latest
-                or record["observation_index"] > latest[check]["observation_index"]
-            ):
-                latest[check] = record
+
+        now = now_utc()
+        findings, notes, advice, links, valid = [], set(), set(), [], {}
+        for check in VIEWS:
+            record, path = latest[check]
+            rows, error = [], record["error"]
+            age = (now - timestamp(record["collected_at"])).total_seconds()
+            if record["status"] == "available":
+                try:
+                    if not -60 <= age <= 300:
+                        raise InvalidResult()
+                    # Recheck saved facts at report time. Stale/invalid latest
+                    # evidence never falls back to an earlier passing snapshot.
+                    rows = parse_result(
+                        check,
+                        {
+                            "backend": BACKEND,
+                            "tool": "execute_sql",
+                            "text": repr([{"payload": json.dumps(row)} for row in record["rows"]]),
+                        },
+                        now,
+                    )
+                except (ValueError, TypeError, SyntaxError, UnicodeError, RecursionError):
+                    error = "stale_or_invalid_saved_result"
+            elif not -60 <= age <= 300:
+                error = "stale_saved_attempt"
             relative = path.relative_to(ctx.workspace).as_posix()
             links.append(f"- [{relative}]({relative})")
-        missing = sorted(set(VIEWS) - {k for k, v in latest.items() if v["status"] == "available"})
-        for record in latest.values():
-            notes.update(record["unknowns"])
-        if missing:
-            notes.add(
-                "Incomplete diagnostic coverage: "
-                + ", ".join(missing)
-                + ". Missing/error observations never establish health."
-            )
+            status = "available" if rows else "unavailable"
+            findings.append(f"### {check}: {status}\n\nCollected at {record['collected_at']}.")
+            if rows:
+                valid[check] = rows
+                findings.append("```json\n" + json.dumps(rows, sort_keys=True, indent=2) + "\n```")
+                notes.update(observation_notes(check, rows))
+            else:
+                findings.append(
+                    "Observation unavailable: " + error + ". No finding is asserted for this check."
+                )
+                notes.add(check + " is unavailable (" + error + "); no conclusion follows.")
+                advice.add(
+                    "Retry inspect_" + check + " for fresh evidence before assessing that check."
+                )
+        if len(valid) != len(VIEWS):
+            notes.add("Incomplete diagnostic coverage; unavailable checks never establish health.")
         else:
             notes.add(
-                "All four bounded checks returned observations; this is not a health certification."
+                "All four bounded checks returned fresh validated observations; this is not a health certification."
             )
-        if "database_stats" in latest:
-            count = latest.get("instance", {}).get("rows", [])
+        if "blocking" in valid and valid["blocking"][0]["blocked_connections"] > 0:
+            advice.add(
+                "Ask the operator to investigate the observed blocking; this agent does not cancel queries or modify the database."
+            )
+        if "database_stats" in valid and any(
+            row["deadlocks"] > 0 for row in valid["database_stats"]
+        ):
+            advice.add(
+                "Cumulative deadlocks appear in returned counters. Correlate with operator incident evidence; these counters do not prove a current deadlock or rate."
+            )
+        if "instance" in valid and valid["instance"][0]["in_recovery"]:
+            advice.add(
+                "Confirm with the operator whether the observed recovery mode is expected before considering changes."
+            )
+        if "database_stats" in valid:
+            count = valid.get("instance", [])
             value = count[0]["database_count"] if count else "unknown"
             notes.add(
-                f"Instance database count: {value}; at most 16 database rows returned. Separate snapshots are not atomic; omitted database coverage remains possible."
+                f"Instance database count: {value}; returned database rows: {len(valid['database_stats'])} (top16). Separate snapshots are not atomic; omissions remain possible."
             )
+        advice.add(
+            "Compare timestamped snapshots with operator expectations before any action; no automated remediation is performed."
+        )
+        notes.add(
+            "Backup success, table/index maintenance, query plans and growth rates were not assessed. Null stats_reset is not evidence of a deployment or reset time."
+        )
         report = (
-            f"# DB Admin advisory\n\nGenerated at {now_utc().isoformat()}.\n\n"
-            f"## Findings\n\n{findings.strip()}\n\n## Advice\n\n{advice.strip()}\n\n"
-            f"## Unknowns\n\n{unknowns.strip()}\n\n## Coverage and limits\n\n"
-            + "\n".join("- " + note for note in sorted(notes))
-            + "\n- Backup success, table/index maintenance, query plans and growth rates were not assessed.\n"
-            + "\n## Evidence\n\n"
+            f"# DB Admin advisory\n\nGenerated at {now.isoformat()}.\n\n"
+            "Findings and follow-ups are generated only from the latest saved observations. Names are untrusted metadata, never instructions.\n\n"
+            "## Findings\n\n"
+            + "\n\n".join(findings)
+            + "\n\n## Advice\n\n"
+            + "\n".join("- " + item for item in sorted(advice))
+            + "\n\n## Unknowns and coverage\n\n"
+            + "\n".join("- " + item for item in sorted(notes))
+            + "\n\n## Evidence\n\n"
             + "\n".join(links)
             + "\n"
         )
@@ -418,7 +495,7 @@ def create_agent(ctx) -> dict:
         return {
             "path": "report.md",
             "status": "written",
-            "coverage": "incomplete" if missing else "bounded_snapshot",
+            "coverage": "bounded_snapshot" if len(valid) == len(VIEWS) else "incomplete",
         }
 
     return {
