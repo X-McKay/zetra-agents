@@ -152,11 +152,9 @@ def test_packaged_factory_and_manifest_use_normal_sdk(app):
     assert set(built) == TOOLS and "untrusted" in instructions
     for name in TOOLS - {"write_report"}:
         assert inspect.signature(built[name].fn).parameters == {}
-    assert set(inspect.signature(built["write_report"].fn).parameters) == {
-        "findings",
-        "advice",
-        "unknowns",
-    }
+    assert inspect.signature(built["write_report"].fn).parameters == {}
+    assert step.schema(built["write_report"])["function"]["parameters"]["properties"] == {}
+    assert step.schema(built["write_report"])["function"]["parameters"]["required"] == []
 
 
 async def test_each_diagnostic_is_one_exact_fixed_view_query(tmp_path, monkeypatch):
@@ -249,37 +247,105 @@ async def test_evidence_is_timestamped_hash_addressed_and_changed_values_preserv
     assert json.loads((tmp_path / first["evidence"]).read_text())["rows"][0]["database_count"] == 20
 
 
-async def test_report_has_automatic_provenance_partial_coverage_and_scope_limits(
-    tmp_path, monkeypatch
-):
-    fns = tools(tmp_path, monkeypatch, Mcp())
-    result = await fns["write_report"](
-        "Not enough data", "Collect the fixed diagnostics", "Database observations missing"
-    )
-    assert result["status"] == "unavailable"
-    observation = await fns["inspect_database_stats"]()
-    result = await fns["write_report"](
-        "One database snapshot observed",
-        "Review counters with the operator",
-        "Other checks unavailable",
-    )
-    assert result["path"] == "report.md"
-    report = (tmp_path / "report.md").read_text()
-    assert STAMP in report and "Findings" in report and "Advice" in report and "Unknowns" in report
-    assert observation["evidence"] in report and "incomplete" in report.lower()
-    assert "16" in report and "cumulative" in report and "backup" in report.lower()
-    assert "instance" in report and "blocking" in report and "connections" in report
+async def collect_all(fns):
+    return {key: await fns["inspect_" + key]() for key in VIEW}
 
 
-async def test_report_rejects_forged_evidence_paths_raw_sql_and_healthy_claims(
-    tmp_path, monkeypatch
-):
+async def test_report_requires_all_four_attempts_and_names_missing_tool(tmp_path, monkeypatch):
     fns = tools(tmp_path, monkeypatch, Mcp())
-    await fns["inspect_instance"]()
-    for findings in ("See evidence/fake.json", "SELECT * FROM accounts", "The instance is healthy"):
-        result = await fns["write_report"](findings, "Human review only", "Other checks missing")
-        assert result["status"] == "unavailable"
+    for key in ("instance", "connections", "database_stats"):
+        await fns["inspect_" + key]()
+    result = await fns["write_report"]()
+    assert result["error"] == "missing_checks" and result["missing_tools"] == ["inspect_blocking"]
+    assert "inspect_blocking" in result["hint"]
     assert not (tmp_path / "report.md").exists()
+    await fns["inspect_blocking"]()
+    assert (await fns["write_report"]())["coverage"] == "bounded_snapshot"
+
+
+async def test_legacy_freeform_false_no_blocking_claim_cannot_be_written(tmp_path, monkeypatch):
+    fns = tools(tmp_path, monkeypatch, Mcp())
+    for key in ("instance", "connections", "database_stats"):
+        await fns["inspect_" + key]()
+    with pytest.raises(TypeError):
+        await fns["write_report"](
+            "No blocking detected", "Review with operator", "Other checks missing"
+        )
+    assert not (tmp_path / "report.md").exists()
+
+
+async def test_report_is_derived_only_from_latest_observations_with_scope_limits(
+    tmp_path, monkeypatch
+):
+    fns = tools(tmp_path, monkeypatch, Mcp())
+    observations = await collect_all(fns)
+    result = await fns["write_report"]()
+    report = (tmp_path / "report.md").read_text()
+    assert result["path"] == "report.md"
+    assert STAMP in report and "Findings" in report and "Advice" in report and "Unknowns" in report
+    assert all(r["evidence"] in report for r in observations.values())
+    assert "16" in report and "cumulative" in report and "backup" in report.lower()
+    assert "No blocking detected" not in report and "since deployment" not in report
+
+
+async def test_unavailable_blocking_attempt_writes_honest_incomplete_report(tmp_path, monkeypatch):
+    mcp = Mcp()
+    fns = tools(tmp_path, monkeypatch, mcp)
+    for key in ("instance", "connections", "database_stats"):
+        await fns["inspect_" + key]()
+    mcp.error = RuntimeError("private query text")
+    await fns["inspect_blocking"]()
+    result = await fns["write_report"]()
+    report = (tmp_path / "report.md").read_text()
+    assert result["coverage"] == "incomplete"
+    assert "blocking: unavailable" in report and "mcp_unavailable" in report
+    assert "No blocking detected" not in report and "private query text" not in report
+
+
+async def test_latest_error_never_falls_back_to_old_success(tmp_path, monkeypatch):
+    mcp = Mcp()
+    fns = tools(tmp_path, monkeypatch, mcp)
+    observations = await collect_all(fns)
+    mcp.error = RuntimeError("unavailable")
+    latest = await fns["inspect_blocking"]()
+    result = await fns["write_report"]()
+    report = (tmp_path / "report.md").read_text()
+    assert result["coverage"] == "incomplete" and "blocking: unavailable" in report
+    assert latest["evidence"] in report and observations["blocking"]["evidence"] not in report
+
+
+async def test_positive_blocking_is_reported_as_facts_not_absence(tmp_path, monkeypatch):
+    mcp = Mcp()
+    fns = tools(tmp_path, monkeypatch, mcp)
+    await collect_all(fns)
+    mcp.rows = [
+        {
+            **ROWS["blocking"][0],
+            "blocked_connections": 2,
+            "blocking_edges": 3,
+            "oldest_wait_seconds": 4,
+        }
+    ]
+    await fns["inspect_blocking"]()
+    await fns["write_report"]()
+    report = (tmp_path / "report.md").read_text()
+    assert '"blocked_connections": 2' in report and '"oldest_wait_seconds": 4' in report
+    assert "No blocking detected" not in report
+    assert "investigate the observed blocking" in report
+
+
+async def test_stale_saved_success_is_unknown_at_report_time(tmp_path, monkeypatch):
+    from datetime import timedelta
+
+    from db_admin import agent
+
+    fns = tools(tmp_path, monkeypatch, Mcp())
+    await collect_all(fns)
+    monkeypatch.setattr(agent, "now_utc", lambda: NOW + timedelta(minutes=6))
+    result = await fns["write_report"]()
+    report = (tmp_path / "report.md").read_text()
+    assert result["coverage"] == "incomplete" and "stale_or_invalid_saved_result" in report
+    assert '"blocked_connections": 0' not in report
 
 
 def test_agent_source_has_no_direct_network_process_or_dynamic_sql_imports():
@@ -417,3 +483,29 @@ async def test_connection_totals_allow_exact_complete_and_minimal_omitted_groups
             "inspect_connections"
         ]()
         assert result["status"] == "available"
+
+
+async def test_missing_check_does_not_overwrite_existing_report(tmp_path, monkeypatch):
+    fns = tools(tmp_path, monkeypatch, Mcp())
+    for key in ("instance", "connections", "database_stats"):
+        await fns["inspect_" + key]()
+    (tmp_path / "report.md").write_text("preserved prior report")
+    assert (await fns["write_report"]())["missing_tools"] == ["inspect_blocking"]
+    assert (tmp_path / "report.md").read_text() == "preserved prior report"
+
+
+async def test_latest_invalid_saved_rows_do_not_resurrect_an_older_success(tmp_path, monkeypatch):
+    fns = tools(tmp_path, monkeypatch, Mcp())
+    observations = await collect_all(fns)
+    record = json.loads((tmp_path / observations["blocking"]["evidence"]).read_text())
+    record["observation_index"] = 5
+    record["rows"][0]["blocking_edges"] = 100
+    raw = json.dumps(record, sort_keys=True, indent=2).encode()
+    name = "blocking-" + hashlib.sha256(raw).hexdigest() + ".json"
+    (tmp_path / "evidence" / name).write_bytes(raw)
+    result = await fns["write_report"]()
+    report = (tmp_path / "report.md").read_text()
+    assert result["coverage"] == "incomplete"
+    assert "blocking: unavailable" in report and "stale_or_invalid_saved_result" in report
+    assert observations["blocking"]["evidence"] not in report
+    assert '"blocking_edges": 100' not in report

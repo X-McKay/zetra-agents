@@ -38,11 +38,20 @@ inapplicable. Actual lock wait age and query/transaction age bounds remain disti
 Missing fields, errors, stale/malformed results and absent active measurements
 remain unknown; none establishes an overall health certification.
 
-`write_report` writes timestamped findings, human-review advice and unknowns to
-`report.md`, appending exact SHA-256-addressed evidence links, coverage and scope
-limits automatically. It requires evidence, caps narrative size, refuses SQL and
-health-certification wording, and preserves prior observations. Evidence is bounded
-to32 records; no backup-success, table/index-maintenance or query-plan claims are
-made. Source/fake-MCP tests do not establish live gateway/role behavior. Root owns
-one genuine normal-session smoke, source/image verification, signed release and
-separate approval. No live operation or publication is performed by these tools.
+`write_report()` accepts no arguments and requires all four diagnostic checks to
+have recorded an attempt. A missing attempt refuses the write and names the
+exact missing tools. Unavailable attempts may produce an explicitly incomplete
+report. Findings, unknowns and a small set of conditional operator follow-ups are
+generated only from the latest saved observations, revalidated for freshness,
+schema and cross-field consistency at report time. A latest error/stale result
+never falls back to an earlier success. Prior observations remain saved, but only
+the latest records are cited as current evidence. No model-authored prose enters
+the report, and the model-facing SDK schema has zero parameters.
+
+Reports retain timestamps, SHA-256 citations and the16KiB bound. Evidence remains
+bounded to32 records; no backup-success, table/index-maintenance, query-plan or
+overall health claims are made. v0.1.1 corrects v0.1.0's ability to write freeform
+findings before all four checks were attempted. Source/fake-MCP tests do not
+establish live gateway/role behavior; root owns normal-session smoke, source/image
+verification, release and separate approval. No live operation or publication is
+performed by this package's diagnostic tools.

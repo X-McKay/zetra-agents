@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-db-admin"
-version = "0.1.0"
+version = "0.1.1"
 description = "Read-only PostgreSQL diagnostic adviser through agentgateway"
 requires-python = ">=3.12,<3.13"
 # The image lock: uv.lock is AgentRelease.spec.lockSha256. The SDK is pinned to a zetra commit.
