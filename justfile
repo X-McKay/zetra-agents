@@ -10,7 +10,7 @@ setup:
 
 # Lint, test and layout-check the tools and every agent.
 check: check-tools
-    for a in $(uv run --project tools --locked zetra-agents list | tr -d '[],"'); do just check-agent $a || exit $?; done
+    agents=$(uv run --project tools --locked zetra-agents list) || exit $?; for a in $(printf '%s' "$agents" | tr -d '[],"'); do just check-agent $a || exit $?; done
 
 check-tools:
     cd tools && uv run --locked ruff check . && uv run --locked ruff format --check . && uv run --locked pytest -q

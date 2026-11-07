@@ -10,8 +10,8 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize("failing_agent", ["first", ""])
-def test_check_propagates_an_early_agent_failure(tmp_path, failing_agent):
+@pytest.mark.parametrize("failing_agent", ["first", "", "list", "partial-list"])
+def test_check_propagates_agent_and_discovery_failures(tmp_path, failing_agent):
     just = shutil.which("just")
     if just is None:
         pytest.skip("just is required to exercise the repository recipes")
@@ -22,7 +22,11 @@ def test_check_propagates_an_early_agent_failure(tmp_path, failing_agent):
     uv.write_text(
         "#!/bin/sh\n"
         'case "$*" in\n'
-        '  *"zetra-agents list"*) echo \'["first", "last"]\'; exit 0 ;;\n'
+        '  *"zetra-agents list"*)\n'
+        '    if [ "$FAILING_AGENT" = list ]; then exit 19; fi\n'
+        '    echo \'["first", "last"]\'\n'
+        '    if [ "$FAILING_AGENT" = partial-list ]; then exit 19; fi\n'
+        "    exit 0 ;;\n"
         "esac\n"
         'case "$PWD:$*" in\n'
         '  */agents/*:*"ruff check ."*)\n'
