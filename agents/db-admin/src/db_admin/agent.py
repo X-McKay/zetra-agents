@@ -33,7 +33,7 @@ FIELDS = {
         "observed_at": "t",
         "state": "s",
         "wait_event_type": "s",
-        "connections": "i",
+        "connections": "p",
         "total_groups": "p",
         "total_connections": "p",
         "max_transaction_age_seconds": "?i",
@@ -192,10 +192,29 @@ def parse_result(check, result, collected):
         raise InvalidResult()
     if check == "connections":
         totals = {(r["total_groups"], r["total_connections"]) for r in rows}
+        if len(totals) != 1:
+            raise InvalidResult()
+        groups, connections = next(iter(totals))
+        returned_connections = sum(r["connections"] for r in rows)
+        # The view groups actual clients (each group has at least one), then
+        # limits to16. Entire-group coverage must reconcile exactly; omitted
+        # groups must still contribute at least one client apiece to the total.
         if (
-            len(totals) != 1
-            or rows[0]["total_groups"] < len(rows)
-            or rows[0]["total_connections"] < sum(r["connections"] for r in rows)
+            len(rows) != min(groups, 16)
+            or connections < returned_connections + groups - len(rows)
+            or (groups <= 16 and connections != returned_connections)
+        ):
+            raise InvalidResult()
+    if check == "blocking":
+        row = rows[0]
+        ages = (
+            row["oldest_wait_seconds"],
+            row["max_blocked_query_age_seconds"],
+            row["max_blocked_transaction_age_seconds"],
+        )
+        if row["blocking_edges"] < row["blocked_connections"] or (
+            row["blocked_connections"] == 0
+            and (row["blocking_edges"] != 0 or any(age is not None for age in ages))
         ):
             raise InvalidResult()
     return rows

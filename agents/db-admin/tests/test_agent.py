@@ -307,22 +307,11 @@ def test_agent_source_has_no_direct_network_process_or_dynamic_sql_imports():
 async def test_connection_coverage_is_exact_and_zero_blocking_nulls_are_not_missing(
     tmp_path, monkeypatch
 ):
-    mcp = Mcp(
-        rows=[
-            {
-                **ROWS["connections"][0],
-                "state": "idle",
-                "total_groups": 20,
-                "total_connections": 50,
-                "max_query_age_seconds": None,
-                "max_transaction_age_seconds": None,
-            }
-        ]
-    )
+    mcp = Mcp(rows=grouped_connections(20, 100))
     fns = tools(tmp_path, monkeypatch, mcp)
     connections = await fns["inspect_connections"]()
     assert connections["status"] == "available"
-    assert any("omitted groups: 19" in note for note in connections["unknowns"])
+    assert any("omitted groups: 4" in note for note in connections["unknowns"])
     assert any("not applicable to non-active" in note for note in connections["unknowns"])
     mcp.rows = None
     blocking = await fns["inspect_blocking"]()
@@ -348,3 +337,83 @@ async def test_inconsistent_connection_totals_are_refused(tmp_path, monkeypatch)
         tmp_path, monkeypatch, Mcp(rows=[{**ROWS["connections"][0], "total_connections": 1}])
     )["inspect_connections"]()
     assert result["status"] == "unavailable"
+
+
+def grouped_connections(groups, total, returned=None):
+    return [
+        {
+            **ROWS["connections"][0],
+            "state": "idle",
+            "wait_event_type": f"wait{i}",
+            "total_groups": groups,
+            "total_connections": total,
+            "max_query_age_seconds": None,
+            "max_transaction_age_seconds": None,
+        }
+        for i in range(min(groups, 16) if returned is None else returned)
+    ]
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        grouped_connections(1, 1000),
+        grouped_connections(20, 1000, returned=1),
+        grouped_connections(2, 8, returned=1),
+        [{**ROWS["connections"][0], "connections": 0}],
+        grouped_connections(20, 64),
+    ],
+)
+async def test_impossible_connection_group_cardinality_and_totals_are_unavailable(
+    tmp_path, monkeypatch, rows
+):
+    result = await tools(tmp_path, monkeypatch, Mcp(rows=rows))["inspect_connections"]()
+    assert result["status"] == "unavailable" and result["error"] == "invalid_result"
+    assert result["rows"] == []
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {
+            "blocking_edges": 100,
+            "oldest_wait_seconds": 3,
+            "max_blocked_query_age_seconds": 5,
+            "max_blocked_transaction_age_seconds": 8,
+        },
+        {"oldest_wait_seconds": 0},
+        {"max_blocked_query_age_seconds": 1},
+        {"max_blocked_transaction_age_seconds": 1},
+        {"blocked_connections": 2, "blocking_edges": 1},
+    ],
+)
+async def test_contradictory_blocking_counts_and_absence_are_unavailable(
+    tmp_path, monkeypatch, change
+):
+    result = await tools(tmp_path, monkeypatch, Mcp(rows=[{**ROWS["blocking"][0], **change}]))[
+        "inspect_blocking"
+    ]()
+    assert result["status"] == "unavailable" and result["error"] == "invalid_result"
+    assert not any("Zero blocked connections" in note for note in result["unknowns"])
+
+
+async def test_positive_blocking_allows_transient_missing_age_and_counts_prepared_edges(
+    tmp_path, monkeypatch
+):
+    result = await tools(
+        tmp_path,
+        monkeypatch,
+        Mcp(rows=[{**ROWS["blocking"][0], "blocked_connections": 2, "blocking_edges": 2}]),
+    )["inspect_blocking"]()
+    assert result["status"] == "available"
+    assert any("actual wait age is unknown" in note for note in result["unknowns"])
+
+
+async def test_connection_totals_allow_exact_complete_and_minimal_omitted_groups(
+    tmp_path, monkeypatch
+):
+    for groups, total in ((2, 8), (16, 64), (20, 68)):
+        result = await tools(tmp_path, monkeypatch, Mcp(rows=grouped_connections(groups, total)))[
+            "inspect_connections"
+        ]()
+        assert result["status"] == "available"
