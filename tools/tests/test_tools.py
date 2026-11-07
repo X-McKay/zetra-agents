@@ -134,6 +134,15 @@ def test_every_agent_release_compiles_the_actual_deployment_policy(agent):
                 "resource": BASE + "/kubernetes/mcp",
             }
         }
+    elif agent.name == "db-admin":
+        assert artifacts["bundle"]["mcp"] == {
+            "postgres-admin": {
+                "effect": "remote_read",
+                "tools": ["execute_sql"],
+                "delegation": "agent",
+                "resource": BASE + "/postgres-admin/mcp",
+            }
+        }
 
 
 @pytest.mark.parametrize(
