@@ -64,6 +64,28 @@ just build <agent>   # local image, not pushed
 
 ## Releasing
 
+Before creating or pushing a tag, run the offline compatibility preflight against an
+explicit Kubani candidate checkout:
+
+```sh
+uv run --project tools --locked zetra-agents preflight db-admin \
+  --kubani /path/to/kubani --tag db-admin/v0.1.2
+```
+
+This compares source with **candidate desired GitOps**, checks both model budgets
+against APS reservations, and checks both tenant signer declarations against the
+prospective workflow identity. It does not inspect live cluster state or remaining
+daily allowance. Only the selected agent is checked. The source checkout must be
+clean and the prospective tag must not already exist locally. Candidate worktree
+edits are allowed; the JSON receipt records both HEADs, dirty flags, input hashes
+and local main ancestry. Exit 0 means compatible; exit 1 includes structured errors.
+
+Update checkout references through your normal process and review the recorded local
+main relation: preflight never fetches and cannot prove remote freshness. Missing or
+divergent local main refs are informational, allowing intentional maintenance branches.
+Re-run after changing either checkout and immediately before tagging. This command
+adds no automatic workflow gate and does not create a tag or approve a release.
+
 A tag `<agent>/v<version>` runs `.github/workflows/release.yml` on Kubani's
 `kubani-zetra-agents` runner scale set, which calls `scripts/release.sh`:
 
