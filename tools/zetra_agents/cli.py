@@ -12,7 +12,7 @@ from pathlib import Path
 
 from agent_platform.constants import DEFAULT_TRUST_DOMAIN
 
-from zetra_agents import attestations, layout, release
+from zetra_agents import attestations, layout, preflight, release
 
 MCP_RESOURCE_BASE = "https://mcp.almckay.io"  # Kubani registry-controller.yaml
 
@@ -26,6 +26,13 @@ def main(argv: list[str] | None = None) -> int:
 
     chk = sub.add_parser("check", help="layout and static import checks")
     chk.add_argument("agents", nargs="*", help="default: every agent")
+
+    pre = sub.add_parser(
+        "preflight", help="offline source/candidate GitOps compatibility before tagging"
+    )
+    pre.add_argument("agent")
+    pre.add_argument("--kubani", type=Path, required=True)
+    pre.add_argument("--tag", required=True, help="prospective <agent>/v<version> tag")
 
     rel = sub.add_parser("release", help="write release artifacts for a pushed image")
     rel.add_argument("agent")
@@ -60,6 +67,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "predicate":
         return write_predicate(args)
     repo = args.repo.resolve()
+    if args.command == "preflight":
+        result = preflight.check(repo, args.kubani, args.agent, args.tag)
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result["ok"] else 1
     if args.command == "list":
         print(json.dumps([a.name for a in layout.all_agents(repo)]))
         return 0
