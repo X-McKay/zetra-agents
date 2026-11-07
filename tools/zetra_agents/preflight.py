@@ -255,18 +255,23 @@ def check(repo: Path, kubani: Path, agent: str, tag: str) -> dict[str, Any]:
                 )
                 env = _one(_list(container["env"]), name="APS_BACKEND_CATALOGUE")
                 catalogue = _json(env["value"])
-                for index, grant in enumerate(_list(caps["models"])):
+                grants = _list(caps["models"])
+                reservations = []
+                for grant in grants:
                     reservation = _dict(catalogue[_dict(grant)["backend"]])["maxModelLen"]
                     if type(reservation) is not int or reservation <= 0:
                         raise InputError("backend reservation must be a positive integer")
+                    reservations.append(reservation)
+                # The contract shares the smallest declared budget across all model entries.
+                for index, grant in enumerate(grants):
                     budget = _dict(grant["budget"])
                     for field in ("tokensPerSession", "tokensPerDay"):
                         value = budget.get(field)
-                        if type(value) is not int or value < reservation:
+                        if type(value) is not int or value < max(reservations):
                             error(
                                 "budget",
                                 f"spec.capabilities.models[{index}].budget.{field}",
-                                "budget must be an integer at least the backend reservation",
+                                "budget must be an integer at least every backend reservation",
                             )
 
             attempt("candidate.aps", budgets)

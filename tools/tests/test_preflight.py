@@ -230,6 +230,55 @@ def test_reservation_budget_boundaries(inputs, capsys, field, value, ok):
         assert "budget" in codes(result)
 
 
+@pytest.mark.parametrize("field", ["tokensPerDay", "tokensPerSession"])
+@pytest.mark.parametrize("small_limit,ok", [(500, False), (800, True)])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_effective_budget_funds_every_backend(inputs, capsys, field, small_limit, ok, reverse):
+    # Each grant funds its own backend; the shared minimum must also fund the larger one.
+    grants = [
+        {
+            "backend": "llm-main",
+            "models": ["test"],
+            "budget": {"tokensPerDay": 1000, "tokensPerSession": 1000, field: small_limit},
+        },
+        {
+            "backend": "llm-large",
+            "models": ["test-large"],
+            "budget": {"tokensPerDay": 1000, "tokensPerSession": 1000},
+        },
+    ]
+    if reverse:
+        grants.reverse()
+    change(
+        inputs[1] / FILES["candidate"],
+        lambda d: d["spec"]["capabilities"].update(models=grants),
+    )
+    change(
+        inputs[1] / FILES["aps"],
+        lambda d: d["spec"]["template"]["spec"]["containers"][0]["env"][0].update(
+            value=json.dumps({"llm-main": {"maxModelLen": 300}, "llm-large": {"maxModelLen": 800}})
+        ),
+    )
+    (inputs[0] / "agents/db-admin/deploy/agent.yaml").write_bytes(
+        (inputs[1] / FILES["candidate"]).read_bytes()
+    )
+    git(inputs[0], "add", ".")
+    git(
+        inputs[0],
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "models",
+    )
+    result = run(inputs, capsys)
+    assert result["ok"] is ok
+    if not ok:
+        assert "budget" in codes(result)
+
+
 @pytest.mark.parametrize("tag", ["other/v1", "db-admin/v", "refs/heads/db-admin/v1", "../v1"])
 def test_invalid_prospective_tag(inputs, capsys, tag):
     assert "tag" in codes(run(inputs, capsys, tag))
