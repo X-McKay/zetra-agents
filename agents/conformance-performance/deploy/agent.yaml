@@ -8,10 +8,7 @@ spec:
   description: "T29 signed performance fixture; bounded performance measurements using ordinary SDK MCP reads"
   identity: {mode: agent}
   capabilities:
-    models:
-      - backend: llm-main
-        models: [Qwen3.6-35B-A3B-NVFP4]
-        budget: {tokensPerDay: 1, tokensPerSession: 1}
+    models: []
     mcp:
       - backend: kubernetes
         effect: remote_read

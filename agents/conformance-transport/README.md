@@ -3,8 +3,8 @@
 This signed fixture makes only credential-free transport probes. Its deterministic
 installed boundary driver preserves the unmodified SDK manifest/factory validators;
 image CI checks the actual installed module. No model or MCP request is made, and
-no grant is needed. The conventional model grant is limited to one token per day
-and session to keep manifest validation intact.
+no grant is needed. The manifest explicitly declares `model: null`, and the Agent has no model
+capabilities or inference routes.
 
 The positive gateway probe uses `AgentIdentity._client()` without calling its
 refresh method. A plain HTTP GET, without Authorization or a client assertion,

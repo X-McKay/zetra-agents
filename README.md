@@ -49,7 +49,11 @@ model sees.
 
 `zetra-agents check` (run in CI) refuses an agent whose source imports `httpx`,
 `requests`, `urllib`, `socket`, `aiohttp` or `subprocess` (spec 14.1), whose manifest
-names a model the Agent does not grant, or whose names disagree. Each agent's tests load
+names a model the Agent does not grant, or whose names disagree. Deterministic
+boundary drivers explicitly declare `model: null` and `capabilities.models: []`;
+a missing model field remains an error. This declaration grants no inference
+route; deterministic behavior comes from the implementation, not this declaration.
+The ordinary SDK inference loop remains unchanged. Each agent's tests load
 the manifest through the SDK's own `build_agent`, and CI does the same inside the built
 image, so a tool added to the code but not to `agent.yaml` fails before release.
 

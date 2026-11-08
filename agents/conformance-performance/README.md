@@ -4,8 +4,8 @@ This signed fixture uses a fresh ordinary SDK step process per boundary. Its
 initial boundary obtains an agent token and performs one real Kubernetes MCP
 read; the second boundary uses the persisted token and another real SDK MCP
 session. `warm` means warm token state, never a persistent process or proved
-image-cache-cold start. No model inference is issued; its model capability has
-one token per day/session. Runtime remains the normal one CPU/1Gi profile.
+image-cache-cold start. No model inference is issued; its manifest declares `model: null` and the Agent
+has no model capabilities or inference routes. Runtime remains the normal one CPU/1Gi profile.
 
 The `pair` and `recovery` modes have two boundaries. `trial` and `saturation`
 add a fixed20-second first-boundary hold so actual concurrent activity and queue

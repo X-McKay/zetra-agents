@@ -7,9 +7,8 @@ the trusted isolated worker/root operator, never by this guest.
 
 The eight exact task cases are `success`, `aps_down`, `finalizer`, `worker_kill`,
 `terminate`, `cancel`, `activity_crash`, and `retry_exhaustion`. No model, MCP,
-network, human access token, refresh token or grant access is used. The model
-capability is limited to one token/day and one/session, below the unchanged real
-backend reservation bound. Genuine grant creation and cleanup observations belong
+network, human access token, refresh token or grant access is used. The manifest explicitly declares `model: null`, and the Agent has no model
+capabilities or inference routes. Genuine grant creation and cleanup observations belong
 to the trusted T24 harness/operator.
 
 The Dockerfile explicitly replaces only this image's installed boundary driver,
