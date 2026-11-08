@@ -95,10 +95,20 @@ def check(agent: AgentDir) -> list[str]:
     if cr.get("kind") != "Agent" or cr.get("metadata", {}).get("name") != agent.name:
         problems.append(f"{agent.name}: deploy/agent.yaml must be the Agent named {agent.name}")
     caps = (cr.get("spec") or {}).get("capabilities") or {}
-    models = {m["backend"]: set(m["models"]) for m in caps.get("models") or []}
-    model = manifest.get("model") or {}
-    if model.get("name") not in models.get(model.get("backend"), set()):
-        problems.append(f"{agent.name}: manifest model is not granted by the Agent")
+    model = manifest.get("model")
+    if "model" not in manifest:
+        problems.append(f"{agent.name}: manifest must declare model or explicit model: null")
+    elif model is None:
+        if caps.get("models") != []:
+            problems.append(
+                f"{agent.name}: model: null requires an explicit empty model grant list"
+            )
+    else:
+        models = {m["backend"]: set(m["models"]) for m in caps.get("models") or []}
+        if not isinstance(model, dict) or model.get("name") not in models.get(
+            model.get("backend"), set()
+        ):
+            problems.append(f"{agent.name}: manifest model is not granted by the Agent")
     if any(t.get("effect") == "remote_write" for t in manifest.get("tools") or []):
         problems.append(f"{agent.name}: remote_write tools are not admitted")
     src = agent.root / "src"

@@ -17,6 +17,7 @@ from agent_runtime import step
 assert step.LIFECYCLE_FIXTURE_OVERRIDE == "conformance-lifecycle-v1"
 assert "site-packages/agent_runtime/step.py" in step.__file__
 manifest = step.load_manifest()
+assert "model" in manifest and manifest["model"] is None
 assert set(step.build_agent(manifest)[1]) == {"lifecycle_fixture"}
 mismatch = copy.deepcopy(manifest)
 mismatch["tools"][0]["name"] = "unrelated"

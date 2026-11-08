@@ -13,6 +13,7 @@ from agent_runtime import step
 assert step.PERFORMANCE_FIXTURE_OVERRIDE == "conformance-performance-v1"
 assert "site-packages/agent_runtime/step.py" in step.__file__
 manifest = step.load_manifest()
+assert "model" in manifest and manifest["model"] is None
 assert set(step.build_agent(manifest)[1]) == {"performance_read"}
 bad = copy.deepcopy(manifest)
 bad["tools"][0]["effect"] = "workspace_read"

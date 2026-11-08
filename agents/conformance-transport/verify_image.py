@@ -13,6 +13,7 @@ from agent_runtime import step
 assert step.TRANSPORT_FIXTURE_OVERRIDE == "conformance-transport-v1"
 assert "site-packages/agent_runtime/step.py" in step.__file__
 manifest = step.load_manifest()
+assert "model" in manifest and manifest["model"] is None
 assert set(step.build_agent(manifest)[1]) == {"transport_probe"}
 bad = copy.deepcopy(manifest)
 bad["tools"][0]["effect"] = "workspace_read"

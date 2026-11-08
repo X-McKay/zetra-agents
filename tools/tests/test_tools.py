@@ -179,7 +179,7 @@ def test_performance_fixture_preserves_normal_resources_and_narrow_capabilities(
     spec = agent.agent_cr()["spec"]
     assert spec["runtime"] == {"cpu": "1", "memory": "1Gi", "ttlSeconds": 3600}
     assert spec["identity"] == {"mode": "agent"}
-    assert spec["capabilities"]["models"][0]["budget"] == {"tokensPerDay": 1, "tokensPerSession": 1}
+    assert spec["capabilities"]["models"] == []
     assert spec["capabilities"]["mcp"] == [
         {
             "backend": "kubernetes",
@@ -188,3 +188,63 @@ def test_performance_fixture_preserves_normal_resources_and_narrow_capabilities(
             "tools": ["pods_list_in_namespace"],
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("model", "grants", "valid"),
+    [
+        (None, [], True),
+        (None, None, False),
+        (None, "missing", False),
+        (None, [{"backend": "llm-main", "models": ["test"]}], False),
+        ("missing", [], False),
+        (
+            {"backend": "llm-main", "name": "test"},
+            [{"backend": "llm-main", "models": ["test"]}],
+            True,
+        ),
+        (
+            {"backend": "llm-main", "name": "wrong"},
+            [{"backend": "llm-main", "models": ["test"]}],
+            False,
+        ),
+    ],
+)
+def test_explicit_no_inference_contract(tmp_path, model, grants, valid):
+    root = tmp_path / "agents" / "example"
+    root.mkdir(parents=True)
+    manifest = {"name": "example"}
+    if model != "missing":
+        manifest["model"] = model
+    (root / "agent.yaml").write_text(yaml.safe_dump(manifest))
+    cr = {
+        "kind": "Agent",
+        "metadata": {"name": "example"},
+        "spec": {"capabilities": {"models": grants}},
+    }
+    if grants == "missing":
+        del cr["spec"]["capabilities"]["models"]
+    (root / "deploy").mkdir()
+    (root / "deploy/agent.yaml").write_text(yaml.safe_dump(cr))
+    for name in ("Dockerfile", "pyproject.toml", "uv.lock"):
+        (root / name).touch()
+    problems = layout.check(layout.AgentDir(root))
+    assert (not problems) is valid
+
+
+@pytest.mark.parametrize(
+    "name", ["conformance-lifecycle", "conformance-performance", "conformance-transport"]
+)
+def test_deterministic_fixture_has_no_inference_access(name):
+    agent = layout.find(REPO, name)
+    assert "model" in agent.manifest() and agent.manifest()["model"] is None
+    assert agent.agent_cr()["spec"]["capabilities"]["models"] == []
+    artifacts = release.build(
+        agent,
+        image=IMAGE,
+        revision="0" * 40,
+        mcp_resource_base=BASE,
+        trust_domain="agents.internal",
+    )
+    assert artifacts["bundle"]["models"] == {}
+    assert "inference.agents.internal" not in artifacts["bundle"]["routes"]
