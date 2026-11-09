@@ -6,9 +6,10 @@ the platform and the sandbox SDK (`platform/agent-runtime`); Kubani owns the clu
 and every object applied to it; this repository owns the agents: their code, their
 manifests and capabilities, and the signed releases Kubani consumes.
 
-`conformance-protocol` is the dedicated T25 wire-protocol fixture. Its Dockerfile
-explicitly replaces the installed `agent_runtime.step` module and runs
-`verify_image.py` using that installed module before the image can build. It keeps
+`conformance-protocol` is the dedicated T25 wire-protocol fixture. Built with the shared
+Dockerfile's `fixture` target, its image replaces the installed `agent_runtime.step`
+module with the fixture's and runs `verify_image.py` against the installed module
+before the image can build. It keeps
 the original SDK manifest/factory validators, normal wait process and sandbox
 shape. The standard image CI check remains unchanged and a mismatched manifest
 must still fail. The fixture makes no model/network
@@ -147,8 +148,12 @@ tool result is retained in the runner's accepted snapshot; the model's compact
 summary is not the qualification evidence. HTTP 429s and timeouts are preserved
 as failures, never retried into passes. `conformance-b` keeps the same probe code
 for source parity, but only the primary conformance release is needed for T19.
-cosign, syft and grype come from `registry.almckay.io/mirror/` by digest (see the
-workflow's `env`); grype downloads its vulnerability database on each run.
+
+cosign, syft and grype come from `registry.almckay.io/mirror/` by digest (pinned in
+zetra's `agent-release` action); grype downloads its vulnerability database on each run.
+Because every agent shares the one lock, any lock change (a dev-tool bump included)
+changes `lockSha256` for every agent's next release; `buildRevision` and
+`manifestSha256` say whether the agent itself changed.
 
 The policy digest is computed with the same `agent_platform` contracts commit the
 Registry Controller runs. When Kubani moves to a newer controller image, bump the zetra
