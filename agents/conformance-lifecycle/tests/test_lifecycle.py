@@ -56,12 +56,21 @@ def test_unknown_case_and_missing_checkpoint_fail_closed(tmp_path):
     assert execute(tmp_path, "success", 1).returncode == 5
 
 
-def test_dockerfile_explicitly_installs_and_checks_override():
-    dockerfile = STEP.parents[2] / "Dockerfile"
-    text = dockerfile.read_text()
-    assert "LIFECYCLE_FIXTURE_OVERRIDE" in text
-    assert "agent_runtime.step" in text and "agent_runtime.wait" in text
-    assert "RUN /app/.venv/bin/python -I /tmp/verify_lifecycle_image.py" in text
+def test_image_builds_with_the_fixture_target_that_installs_and_checks_the_override():
+    """The shared Dockerfile's `fixture` stage copies this package's step.py over the installed
+    SDK driver (keeping it as agent_runtime._lifecycle_sdk_step) and runs verify_image.py; this
+    agent is admitted to that stage by name."""
+    from zetra_agents import layout, render
+
+    agent = layout.AgentDir(STEP.parents[2])
+    assert layout.image_target(agent) == "fixture"
+    assert layout.check(agent) == []
+    text = render.template("Dockerfile")
+    assert "FROM runtime AS fixture" in text
+    assert "agent_runtime.wait" in text and "agent_runtime.step" in text
+    assert "RUN /app/.venv/bin/python -I /tmp/verify_image.py" in text
+    assert "agent_runtime._lifecycle_sdk_step" in STEP.read_text()
+    assert "LIFECYCLE_FIXTURE_OVERRIDE" in (STEP.parents[2] / "verify_image.py").read_text()
 
 
 def test_factory_refuses_unpatched_sdk_and_declares_exact_manifest_tools(monkeypatch):

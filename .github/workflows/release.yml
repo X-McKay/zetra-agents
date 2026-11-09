@@ -1,20 +1,22 @@
+# Rendered by `zetra-agents render`; do not edit.
+#
 # Release one agent: a tag `<agent>/v<version>` builds the image, pushes it by digest,
-# signs and attests it keylessly through Kubani's PRIVATE Sigstore (scripts/release.sh),
-# and publishes the artifacts Kubani consumes as a GitHub release. The release is never
-# approved here; approval is a Kubani PR.
+# signs and attests it keylessly through Kubani's PRIVATE Sigstore, and publishes the
+# artifacts Kubani consumes as a GitHub release. The release is never approved here;
+# approval is a Kubani PR. The steps live in zetra's composite action, pinned below to
+# the same commit as the SDK in the images.
 #
 # The signing identity is this workflow on the tag:
-#   https://github.com/X-McKay/zetra-agents/.github/workflows/release.yml@refs/tags/<agent>/v<version>
+#   https://github.com/<owner>/<repo>/.github/workflows/release.yml@refs/tags/<agent>/v<version>
 # which is what Kubani pins per tenant in kyverno/tenant-signers.yaml. A run from a branch
 # would be certified as another identity that admission rejects, so there is no manual
-# trigger (Kubani's runner job guard admits only tag runs of this file anyway).
+# trigger.
 #
 # Repository settings this needs:
 #   secrets  REGISTRY_USERNAME, REGISTRY_PASSWORD   registry.almckay.io basic auth
-#   vars     RELEASE_RUNNER                         kubani-zetra-agents: the self-hosted
-#                                                   scale set that reaches registry.almckay.io
-#                                                   and the private Sigstore
-#            AGENT_REGISTRY (optional)              override of the script default
+#   vars     RELEASE_RUNNER                         the self-hosted scale set that reaches
+#                                                   registry.almckay.io and the private Sigstore
+#            AGENT_REGISTRY (optional)              override of the registry default
 #            VULN_EXCEPTIONS (optional)             High finding ids the tenant allows
 # There is no signing key: do not add one.
 name: Release agent
@@ -32,79 +34,13 @@ jobs:
     permissions:
       contents: write
       id-token: write   # the GitHub OIDC token Fulcio certifies (audience sigstore)
-    env:
-      AGENT_REGISTRY: ${{ vars.AGENT_REGISTRY || 'registry.almckay.io/agents' }}
-      VULN_EXCEPTIONS: ${{ vars.VULN_EXCEPTIONS }}
-      # Signing and SBOM tools, as byte-identical copies of the upstream images in the
-      # local registry (registry.almckay.io/mirror/<host>/<path>, same digest). To bump,
-      # mirror the new upstream digest first, then change the reference here.
-      COSIGN_IMAGE: registry.almckay.io/mirror/ghcr.io/sigstore/cosign/cosign:v2.4.1@sha256:b03690aa52bfe94054187142fba24dc54137650682810633901767d8a3e15b31
-      SYFT_IMAGE: registry.almckay.io/mirror/docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
-      GRYPE_IMAGE: registry.almckay.io/mirror/docker.io/anchore/grype:v0.120.1@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+      - uses: X-McKay/zetra/.github/actions/agent-release@eaa255013f0b542276628685a4f67965942d8f03
         with:
-          version: "0.13.1"
-          python-version: "3.12.14"
-      - name: Resolve the agent
-        id: agent
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          agent="${REF_NAME%%/*}"
-          [[ "$agent" =~ ^[a-z0-9-]+$ && -d "agents/$agent" ]] || { echo "unknown agent $agent" >&2; exit 1; }
-          echo "name=$agent" >> "$GITHUB_OUTPUT"
-      - name: Registry login
-        env:
-          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
-        run: |
-          echo "$REGISTRY_PASSWORD" | docker login "${AGENT_REGISTRY%%/*}" -u "$REGISTRY_USERNAME" --password-stdin
-      - name: Install cosign, syft and grype from the registry mirror
-        run: |
-          bin="$RUNNER_TEMP/bin"
-          mkdir -p "$bin"
-          extract() { # <image@digest> <path in image> <name>
-            docker pull -q --platform linux/amd64 "$1" >/dev/null
-            id=$(docker create --platform linux/amd64 "$1")
-            docker cp "$id:$2" "$bin/$3"
-            docker rm "$id" >/dev/null
-          }
-          extract "$COSIGN_IMAGE" /ko-app/cosign cosign
-          extract "$SYFT_IMAGE" /syft syft
-          extract "$GRYPE_IMAGE" /grype grype
-          echo "$bin" >> "$GITHUB_PATH"
-          "$bin/cosign" version
-          "$bin/syft" version
-          "$bin/grype" version
-      - name: Build, push, sign, attest, verify
-        env:
-          REVISION: ${{ github.sha }}
-          AGENT: ${{ steps.agent.outputs.name }}
-          GRYPE_DB_CACHE_DIR: ${{ runner.temp }}/grype-db
-        run: scripts/release.sh "$AGENT"
-      # The runner image has no gh CLI, so this talks to the REST API with curl.
-      - name: Publish the release artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AGENT: ${{ steps.agent.outputs.name }}
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          py() { uv run --project tools --locked python -c "$@"; }
-          api="${GITHUB_API_URL:-https://api.github.com}/repos/$GITHUB_REPOSITORY"
-          auth=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
-          name=$(py 'import json,sys; print(json.load(open(sys.argv[1]))["release"])' "dist/$AGENT/predicate.json")
-          notes="Image: $(cat "dist/$AGENT/image"). Signed keylessly through the private Sigstore as https://github.com/$GITHUB_WORKFLOW_REF. Unapproved AgentRelease; copy agent.yaml and agentrelease.yaml into Kubani (see README)."
-          body=$(py 'import json,sys; print(json.dumps({"tag_name": sys.argv[1], "target_commitish": sys.argv[2], "name": sys.argv[3], "body": sys.argv[4]}))' \
-            "$REF_NAME" "$GITHUB_SHA" "$name" "$notes")
-          release=$(curl -fsS "${auth[@]}" -X POST "$api/releases" -d "$body")
-          upload=$(py 'import json,sys; print(json.loads(sys.argv[1])["upload_url"].split("{")[0])' "$release")
-          for f in dist/"$AGENT"/*; do
-            curl -fsS -o /dev/null "${auth[@]}" -H "Content-Type: application/octet-stream" \
-              --data-binary "@$f" "$upload?name=$(basename "$f")"
-            echo "uploaded $(basename "$f")"
-          done
-          py 'import json,sys; print(json.loads(sys.argv[1])["html_url"])' "$release"
+          registry-username: ${{ secrets.REGISTRY_USERNAME }}
+          registry-password: ${{ secrets.REGISTRY_PASSWORD }}
+          registry: ${{ vars.AGENT_REGISTRY || 'registry.almckay.io/agents' }}
+          vuln-exceptions: ${{ vars.VULN_EXCEPTIONS }}
