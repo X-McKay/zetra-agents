@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - uses: X-McKay/zetra/.github/actions/agent-release@543053a1aec8dbd453f92b69bd9903653ddbb05b
+      - uses: X-McKay/zetra/.github/actions/agent-release@0260748c2b80ccdd0ab3df4ef326f8e213bafc10
         with:
           registry-username: ${{ secrets.REGISTRY_USERNAME }}
           registry-password: ${{ secrets.REGISTRY_PASSWORD }}
