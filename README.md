@@ -6,9 +6,10 @@ the platform and the sandbox SDK (`platform/agent-runtime`); Kubani owns the clu
 and every object applied to it; this repository owns the agents: their code, their
 manifests and capabilities, and the signed releases Kubani consumes.
 
-`conformance-protocol` is the dedicated T25 wire-protocol fixture. Its Dockerfile
-explicitly replaces the installed `agent_runtime.step` module and runs
-`verify_image.py` using that installed module before the image can build. It keeps
+`conformance-protocol` is the dedicated T25 wire-protocol fixture. Built with the shared
+Dockerfile's `fixture` target, its image replaces the installed `agent_runtime.step`
+module with the fixture's and runs `verify_image.py` against the installed module
+before the image can build. It keeps
 the original SDK manifest/factory validators, normal wait process and sandbox
 shape. The standard image CI check remains unchanged and a mismatched manifest
 must still fail. The fixture makes no model/network
@@ -22,21 +23,33 @@ Kubani must pin the new signer identity and approve the specific release.
 
 ## Layout
 
+The same layout every agent repository has, whether it holds one agent or thirteen
+(`zetra init` renders it; see zetra `docs/agents.md`):
+
 ```
-agents/<name>/                one directory per agent, each its own uv project
+agents/<name>/                one directory per agent, a member of the root uv workspace
   agent.yaml                  manifest (spec 11.7), baked in as /app/agent.yaml
   deploy/agent.yaml           the Agent resource (spec 6.1): identity, models, MCP tools, budget
+  pyproject.toml              this agent's dependencies (agent-runtime, pinned once at the root)
   src/<package>/              create_agent(ctx) and the agent's instructions
   tests/                      unit tests, including manifest/tool agreement
-  Dockerfile                  the agent image: SDK venv + manifest + package, UID 1500
-  pyproject.toml, uv.lock     the image lock; its SHA-256 is AgentRelease.spec.lockSha256
-tools/                        `zetra-agents check | list | release | predicate`, pinned to the zetra
-                              contracts the Registry Controller runs
-scripts/release.sh            build, push, keyless sign + attest, verify, write release artifacts
-.github/sigstore/             the private Sigstore trust roots releases sign and verify with
+  verify_image.py             conformance fixtures only: checks the installed SDK override
+pyproject.toml, uv.lock       one workspace, one lock; its SHA-256 is AgentRelease.spec.lockSha256
+                              for every agent released from here
+Dockerfile                    one image recipe: targets `runtime` and `fixture` (UID 1500)
+justfile, .dockerignore       rendered with the Dockerfile from zetra platform/agent-tools
+.github/workflows/ci.yml      rendered: check, render check, per-agent tests and image build
+.github/workflows/release.yml rendered shim: calls zetra's agent-release action on <agent>/v* tags
+.github/workflows/legacy.yml  this repository's own checks for legacy/
 legacy/openshell-investigator the OpenShell POC moved from kubani pocs/, kept until
                               OpenShell is retired after platform Phase B
 ```
+
+The rendered files pin one zetra commit (root `pyproject.toml`, `[tool.uv.sources]`)
+that provides the sandbox SDK in the images, the `zetra-agents` tooling and the
+`agent_platform` contracts the Registry Controller runs. `zetra-agents render --check`
+fails in CI if a rendered file is edited by hand; change the templates in zetra, bump the
+pin, `uv lock`, and `uv run --locked zetra-agents render`.
 
 ## Writing an agent
 
@@ -58,12 +71,13 @@ the manifest through the SDK's own `build_agent`, and CI does the same inside th
 image, so a tool added to the code but not to `agent.yaml` fails before release.
 
 To add one, copy `agents/investigator`, rename the directory, package and names, set the
-Agent's tenant namespace to one Kubani defines, then `uv lock` in the new directory.
+Agent's tenant namespace to one Kubani defines, then `uv lock` at the root (the new member
+joins the one lock). A new repository instead of a new directory is `zetra init`.
 
 ```sh
-just setup           # lock-exact environments for tools and every agent
+just setup           # the locked workspace: every agent and the tooling
 just check           # what CI runs, minus the image build
-just build <agent>   # local image, not pushed
+just build <agent>   # local image with the agent's target, not pushed
 ```
 
 ## Releasing
@@ -72,8 +86,7 @@ Before creating or pushing a tag, run the offline compatibility preflight agains
 explicit Kubani candidate checkout:
 
 ```sh
-uv run --project tools --locked zetra-agents preflight db-admin \
-  --kubani /path/to/kubani --tag db-admin/v0.1.2
+just preflight db-admin db-admin/v0.1.2 /path/to/kubani
 ```
 
 This compares source with **candidate desired GitOps**, checks both model budgets
@@ -91,12 +104,15 @@ Re-run after changing either checkout and immediately before tagging. This comma
 adds no automatic workflow gate and does not create a tag or approve a release.
 
 A tag `<agent>/v<version>` runs `.github/workflows/release.yml` on Kubani's
-`kubani-zetra-agents` runner scale set, which calls `scripts/release.sh`:
+`kubani-zetra-agents` runner scale set, which calls zetra's
+`.github/actions/agent-release` composite action at the pinned zetra commit:
 
-1. Check the agent, refuse a dirty tree (a release is a commit), and refuse to run as any
-   identity other than the tenant's pin (this workflow on an `<agent>/v*` tag).
+1. Check the agent and the rendered files, refuse a dirty tree (a release is a commit),
+   and refuse to run as any identity other than the tenant's pin (this workflow on an
+   `<agent>/v*` tag).
 2. Run the agent's tests; their JUnit report becomes the eval predicate.
-3. Build and push to `registry.almckay.io/agents/<agent>`, the repository Kubani's
+3. Build with the agent's image target (`runtime`, or `fixture` for the conformance
+   fixtures), push to `registry.almckay.io/agents/<agent>`, the repository Kubani's
    admission accepts, and resolve the pushed digest.
 4. Write `dist/<agent>/`:
 
@@ -116,8 +132,8 @@ A tag `<agent>/v<version>` runs `.github/workflows/release.yml` on Kubani's
 5. Sign the digest and attest the five predicates **keylessly through Kubani's private
    Sigstore**: Fulcio (`https://fulcio.almckay.io`) certifies the workflow's GitHub OIDC
    identity, Rekor (`https://rekor.almckay.io`) logs every entry. There is no signing key.
-   The trust roots are pinned in [`.github/sigstore/`](.github/sigstore/README.md); public
-   Sigstore is never used.
+   The trust roots ship with the action, pinned by the zetra commit; public Sigstore is
+   never used.
 6. Verify the signature and all five attestations against those roots with the tenant's
    identity pin, then run the eval and vuln conditions Kyverno applies (`agentctl
    validate`): no Critical findings, High only when listed in `VULN_EXCEPTIONS`.
@@ -132,13 +148,17 @@ tool result is retained in the runner's accepted snapshot; the model's compact
 summary is not the qualification evidence. HTTP 429s and timeouts are preserved
 as failures, never retried into passes. `conformance-b` keeps the same probe code
 for source parity, but only the primary conformance release is needed for T19.
-cosign, syft and grype come from `registry.almckay.io/mirror/` by digest (see the
-workflow's `env`); grype downloads its vulnerability database on each run.
+
+cosign, syft and grype come from `registry.almckay.io/mirror/` by digest (pinned in
+zetra's `agent-release` action); grype downloads its vulnerability database on each run.
+Because every agent shares the one lock, any lock change (a dev-tool bump included)
+changes `lockSha256` for every agent's next release; `buildRevision` and
+`manifestSha256` say whether the agent itself changed.
 
 The policy digest is computed with the same `agent_platform` contracts commit the
-Registry Controller runs. When Kubani moves to a newer controller image, bump the pin
-in `tools/pyproject.toml` with it, or the controller's recomputed digest will differ and
-the release will never be ready.
+Registry Controller runs. When Kubani moves to a newer controller image, bump the zetra
+pin in the root `pyproject.toml` with it (then `uv lock` and `zetra-agents render`), or
+the controller's recomputed digest will differ and the release will never be ready.
 
 The workflow needs secrets `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, variable
 `RELEASE_RUNNER=kubani-zetra-agents`, and optionally `AGENT_REGISTRY` and
@@ -149,8 +169,12 @@ The workflow needs secrets `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, variable
 Kubani applies agents from `infrastructure/gitops/apps/agents/<tenant>/<agent>/`
 (spec 14.1):
 
-1. PR the Agent (`dist/<agent>/agent.yaml`) and wait for its `Ready` condition.
-2. PR the unapproved `agentrelease.yaml`; wait for `status.signatureVerified` and
+1. Once per repository, `just agent register <tenant> <owner/repo> <agent>...`
+   in Kubani copies the Agent from this checkout and pins this repository's release
+   identity for exactly these agents; later Agent changes are `just agent sync`. Wait
+   for the `Ready` condition.
+2. `just agent stage <agent> <agent>/vX.Y.Z` verifies the published assets and PRs the
+   unapproved `agentrelease.yaml`; wait for `status.signatureVerified` and
    `status.policyDigest`.
 3. Security review reads the policy bundle ConfigMap and the image's `agent.yaml`, then
    approves with a PR setting `approval.approved: true`, `approvedBy`, `approvedAt` and
@@ -169,8 +193,8 @@ under `legacy/` is still the investigator that has run there; its deploy recipe 
 
 Local installed-fixture checks must use a private `UV_CACHE_DIR` and
 `UV_LINK_MODE=copy`. Before replacing an installed SDK module, call
-`zetra_agents.verification.replace_installed_file(path, content)` from the tools
-project. It atomically replaces the directory entry; writing directly through a
+`zetra_agents.verification.replace_installed_file(path, content)` from the
+workspace environment (`uv run --locked python`). It atomically replaces the directory entry; writing directly through a
 uv-installed path can overwrite a hardlinked shared cache or another environment.
 The helper has a real hardlink regression. Image validation still runs against
 its own installed SDK inside the release build; local checks do not replace it.
