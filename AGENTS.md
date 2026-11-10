@@ -3,8 +3,14 @@
 - One agent per `agents/<name>/`, a member of the root uv workspace; run `just check`
   after changes. `just setup` installs everything. Agent dependencies live in the agent's
   own `pyproject.toml`; the one `uv.lock` is the image lock for every agent.
-- Keep `agent.yaml`, `create_agent` and `deploy/agent.yaml` in agreement: every tool in the
-  code is in the manifest with the same effect, every MCP tool it calls is granted.
+- Declare a tool once, in `create_agent`: `just render` writes the `tools:` list of
+  `agent.yaml` from the code and `just check` fails when they differ, so do not edit that
+  list by hand. The nine conformance fixtures are the exception: their lists are not
+  derived, so edit the list and the set in the fixture's `verify_image.py` together;
+  only the image build (`just build`, CI) catches a mismatch there, `just check` does
+  not. Every MCP tool the code calls must be granted in `deploy/agent.yaml`, which stays
+  hand-written: it is what the security review approves, and `zetra-agents check` holds
+  it to the Agent CRD schema.
 - Agent code reaches the outside only through `ctx.mcp`. Never import network or process
   modules in an agent package; `zetra-agents check` rejects them.
 - `Dockerfile`, `.dockerignore`, `justfile`, the root `pyproject.toml`, `ci.yml` and
