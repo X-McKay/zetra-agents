@@ -32,7 +32,7 @@ agents/<name>/                one directory per agent, a member of the root uv w
   deploy/agent.yaml           the Agent resource (spec 6.1): identity, models, MCP tools, budget
   pyproject.toml              this agent's dependencies (agent-runtime, pinned once at the root)
   src/<package>/              create_agent(ctx) and the agent's instructions
-  tests/                      unit tests, including the agent built as its image builds it
+  tests/                      unit tests
   verify_image.py             conformance fixtures only: checks the installed SDK override
 pyproject.toml, uv.lock       one workspace, one lock; its SHA-256 is AgentRelease.spec.lockSha256
                               for every agent released from here
@@ -62,16 +62,18 @@ model sees.
 
 `zetra-agents check` (run in CI) refuses an agent whose source imports `httpx`,
 `requests`, `urllib`, `socket`, `aiohttp` or `subprocess` (spec 14.1), whose manifest
-names a model the Agent does not grant, or whose names disagree. Deterministic
+names a model the Agent does not grant, whose names disagree, or whose
+`deploy/agent.yaml` is outside the Agent CRD schema. Deterministic
 boundary drivers explicitly declare `model: null` and `capabilities.models: []`;
 a missing model field remains an error. This declaration grants no inference
 route; deterministic behavior comes from the implementation, not this declaration.
 The ordinary SDK inference loop remains unchanged. A tool is declared once, in
 `create_agent`: `just render` writes the `tools:` list of `agent.yaml` from the code and
-`render --check` (in `just check` and CI) names any difference; the conformance
-fixtures' lists are not derived. Each agent's tests load the manifest through the SDK's
-own `build_agent`, and CI does the same inside the built image, so a manifest that
-disagrees with the code fails before release.
+`render --check` (in `just check` and CI) names any difference. The nine conformance
+fixtures' lists are not derived: each fixture's `verify_image.py` holds its manifest to
+its code when the image is built, which `just check` does not do. CI builds every
+agent's image and compares the tools the SDK builds inside it with the manifest, so a
+manifest that disagrees with the code fails before release.
 
 To add one, copy `agents/investigator`, rename the directory, package and names, set the
 Agent's tenant namespace to one Kubani defines, then `uv lock` at the root (the new member

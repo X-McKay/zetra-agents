@@ -5,9 +5,12 @@
   own `pyproject.toml`; the one `uv.lock` is the image lock for every agent.
 - Declare a tool once, in `create_agent`: `just render` writes the `tools:` list of
   `agent.yaml` from the code and `just check` fails when they differ, so do not edit that
-  list by hand (the conformance fixtures' lists are not derived; their image build holds
-  them to their manifests). Every MCP tool the code calls must be granted in
-  `deploy/agent.yaml`, which stays hand-written: it is what the security review approves.
+  list by hand. The nine conformance fixtures are the exception: their lists are not
+  derived, so edit the list and the set in the fixture's `verify_image.py` together;
+  only the image build (`just build`, CI) catches a mismatch there, `just check` does
+  not. Every MCP tool the code calls must be granted in `deploy/agent.yaml`, which stays
+  hand-written: it is what the security review approves, and `zetra-agents check` holds
+  it to the Agent CRD schema.
 - Agent code reaches the outside only through `ctx.mcp`. Never import network or process
   modules in an agent package; `zetra-agents check` rejects them.
 - `Dockerfile`, `.dockerignore`, `justfile`, the root `pyproject.toml`, `ci.yml` and
