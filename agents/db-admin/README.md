@@ -55,3 +55,5 @@ findings before all four checks were attempted. Source/fake-MCP tests do not
 establish live gateway/role behavior; root owns normal-session smoke, source/image
 verification, release and separate approval. No live operation or publication is
 performed by this package's diagnostic tools.
+
+v0.1.2 changes no agent code. It is the same agent rebuilt on the SDK at zetra `67c908a`.

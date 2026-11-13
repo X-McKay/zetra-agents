@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-db-admin"
-version = "0.1.1"
+version = "0.1.2"
 description = "Read-only PostgreSQL diagnostic adviser through agentgateway"
 requires-python = ">=3.12,<3.13"
 # The sandbox SDK; its zetra commit is pinned once in the root pyproject.
