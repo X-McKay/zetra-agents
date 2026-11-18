@@ -1,0 +1,11 @@
+schema_version: 1
+timeout_seconds: 120
+acceptance:
+  min_passed: all
+cases:
+  - id: checked
+    task: Write the report and check it.
+    expect:
+      report_contains: ["## Result"]
+      report_matches: ["(?m)^check: passed$"]
+      report_excludes: ["check: failed"]

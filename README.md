@@ -34,6 +34,8 @@ agents/<name>/                one directory per agent, a member of the root uv w
   src/<package>/              create_agent(ctx) and the agent's instructions
   tests/                      unit tests
   verify_image.py             conformance fixtures only: checks the installed SDK override
+  skills.lock                 rendered: the digest of each skill the agent lists
+skills/<name>/                skills any agent here may list: SKILL.md, zetra.yaml, scripts/
 pyproject.toml, uv.lock       one workspace, one lock; its SHA-256 is AgentRelease.spec.lockSha256
                               for every agent released from here
 Dockerfile                    one image recipe: targets `runtime` and `fixture` (UID 1500)
@@ -84,6 +86,26 @@ just setup           # the locked workspace: every agent and the tooling
 just check           # what CI runs, minus the image build
 just build <agent>   # local image with the agent's target, not pushed
 ```
+
+### Skills
+
+A skill is a directory under `skills/` in the [Agent Skills](https://agentskills.io) format:
+`SKILL.md` says when and how to use it, and `zetra.yaml` beside it declares the scripts the
+platform may run and the tools the skill needs. An agent lists the skills it uses under
+`skills:` in `agent.yaml` (the one-file layout, with a `requires` block). `just render`
+writes `agents/<name>/skills.lock`, which pins each listed skill by the digest of its files;
+a skill changed without a new lock fails `check` and the image build, and a changed lock is
+a change to the agent, so it needs a new version. Two agents that list one skill pin the
+same digest.
+
+A script runs only through the platform's launcher (the built-in tool `skill_run`), inside
+the agent's own container with a time limit, and only for an agent that asks for the effect
+`sandbox_execute` under `requires.effects`. A release that asks for it is Ready only in a
+tenant whose Namespace grants the effect, which is a reviewed change in Kubani. The contract
+is zetra `platform/registry/contract/skills.md`.
+
+`skills/report-check` checks a written `report.md`. `agents/skill-rehearsal`, which has no
+model, runs it in every session; `just run skill-rehearsal` shows the script run locally.
 
 ## Releasing
 

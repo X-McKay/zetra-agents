@@ -1,0 +1,21 @@
+# Written by `zetra-agents render` from agent.yaml; not edited by hand.
+apiVersion: agentplatform.io/v1alpha1
+kind: Agent
+metadata:
+  name: skill-rehearsal
+  namespace: tenant-test
+spec:
+  owner: 4785437+X-McKay@users.noreply.github.com
+  description: Rehearsal agent for skills with scripts; writes a report and runs a
+    skill's script to check it
+  identity:
+    mode: agent
+  capabilities:
+    models: []
+    mcp: []
+    effects:
+    - sandbox_execute
+  runtime:
+    cpu: '1'
+    memory: 1Gi
+    ttlSeconds: 300
