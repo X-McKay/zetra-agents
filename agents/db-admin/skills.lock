@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "skills": [
+    {
+      "digest": "sha256:c45ccbfed48ba26d48fe1035c97aa98250f3d75ccdc1765342a0e5c092cf1091",
+      "name": "report-check",
+      "version": "1.0"
+    }
+  ]
+}

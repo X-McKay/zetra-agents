@@ -1,7 +1,9 @@
 import ast
 import hashlib
+import importlib.util
 import inspect
 import json
+import re
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -509,3 +511,44 @@ async def test_latest_invalid_saved_rows_do_not_resurrect_an_older_success(tmp_p
     assert "blocking: unavailable" in report and "stale_or_invalid_saved_result" in report
     assert observations["blocking"]["evidence"] not in report
     assert '"blocking_edges": 100' not in report
+
+
+SKILL = ROOT.parents[1] / "skills/report-check"
+
+
+def instructed_check() -> list[str]:
+    """The arguments the instructions give for the report check."""
+    text = (ROOT / "src/db_admin/instructions/base.md").read_text()
+    assert "skill report-check, script scripts/check_report.py" in text
+    return json.loads(re.search(r'^\["## .*\]\.$', text, re.MULTILINE).group()[:-1])
+
+
+def test_the_manifest_lists_the_skill_and_asks_for_the_effect():
+    manifest = yaml.safe_load((ROOT / "agent.yaml").read_text())
+    cr = yaml.safe_load((ROOT / "deploy/agent.yaml").read_text())
+    assert manifest["skills"] == ["report-check"]
+    assert manifest["requires"]["effects"] == ["sandbox_execute"]
+    assert cr["spec"]["capabilities"]["effects"] == ["sandbox_execute"]
+    assert "skill_run" not in {t["name"] for t in manifest["tools"]}
+
+
+def test_the_lock_pins_the_skill_as_the_other_agent_that_uses_it_does():
+    mine = json.loads((ROOT / "skills.lock").read_text())["skills"]
+    other = json.loads((ROOT.parent / "skill-rehearsal/skills.lock").read_text())["skills"]
+    assert [s["name"] for s in mine] == ["report-check"]
+    assert mine == other
+
+
+async def test_the_report_passes_the_check_the_instructions_ask_for(tmp_path, monkeypatch, capsys):
+    fns = tools(tmp_path, monkeypatch, Mcp())
+    await collect_all(fns)
+    assert (await fns["write_report"]())["status"] == "written"
+    spec = importlib.util.spec_from_file_location("check_report", SKILL / "scripts/check_report.py")
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    monkeypatch.chdir(tmp_path)
+    arguments = instructed_check()
+    assert arguments == ["## Findings", "## Advice", "## Unknowns and coverage", "## Evidence"]
+    assert script.main(arguments) == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+    assert script.main([*arguments, "## Remediation"]) == 1

@@ -7,6 +7,8 @@ model:
   name: main
   max_tokens: 1024
   temperature: 0
+skills:
+  - report-check
 tools:
   - name: inspect_instance
     effect: remote_read
@@ -29,4 +31,6 @@ requires:
       effect: remote_read
       tools: [execute_sql]
       delegation: inherit
+  # The skill's script runs in the agent's container; the tenant must grant this.
+  effects: [sandbox_execute]
   runtime: {cpu: "1", memory: 2Gi, ttlSeconds: 900}
