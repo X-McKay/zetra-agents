@@ -1,0 +1,5 @@
+schema_version: 1
+scripts:
+  - path: scripts/check_report.py
+    interpreter: python3
+    timeout_seconds: 20
