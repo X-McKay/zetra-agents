@@ -1,0 +1,19 @@
+schema_version: 1
+name: alias-rehearsal-pass
+entrypoint: alias_rehearsal_pass.agent:create_agent
+instructions: alias_rehearsal_pass/instructions/base.md
+model:
+  backend: llm-fast
+  name: fast
+  max_tokens: 128
+  temperature: 0
+tools:
+  - name: answer
+    effect: workspace_write
+requires:
+  owner: 4785437+X-McKay@users.noreply.github.com
+  description: Rehearsal agent for moving the fast model alias; passes before and after the move
+  tenant: tenant-test
+  identity: {mode: agent}
+  budget: {tokensPerDay: 200000, tokensPerSession: 20000}
+  runtime: {cpu: "1", memory: 1Gi, ttlSeconds: 300}
