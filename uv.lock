@@ -899,7 +899,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-db-admin"
-version = "0.1.3"
+version = "0.1.4"
 source = { virtual = "agents/db-admin" }
 dependencies = [
     { name = "agent-runtime" },

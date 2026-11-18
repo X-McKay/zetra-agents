@@ -24,6 +24,8 @@ spec:
       tools:
       - execute_sql
       delegation: inherit
+    effects:
+    - sandbox_execute
   runtime:
     cpu: '1'
     memory: 2Gi
