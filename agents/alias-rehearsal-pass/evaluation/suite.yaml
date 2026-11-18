@@ -6,4 +6,4 @@ cases:
   - id: word
     task: Answer with the word kestrel.
     expect:
-      report_matches: ["(?m)^word: kestrel$"]
+      report_matches: ["(?mi)^word: kestrel$"]

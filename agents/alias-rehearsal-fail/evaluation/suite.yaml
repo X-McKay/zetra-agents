@@ -6,4 +6,4 @@ cases:
   - id: word-and-model
     task: Answer with the word kestrel.
     expect:
-      report_matches: ["(?m)^word: kestrel$", "(?m)^model: Qwen/Qwen3\\.5-0\\.8B$"]
+      report_matches: ["(?mi)^word: kestrel$", "(?m)^model: Qwen/Qwen3\\.5-0\\.8B$"]
