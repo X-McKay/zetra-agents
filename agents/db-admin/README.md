@@ -57,3 +57,11 @@ verification, release and separate approval. No live operation or publication is
 performed by this package's diagnostic tools.
 
 v0.1.2 changes no agent code. It is the same agent rebuilt on the SDK at zetra `67c908a`.
+
+v0.1.3 moves the agent to the one-file layout. Edit `agent.yaml` only: its `requires` block
+holds the owner, tenant, identity, budget, MCP grants and runtime, and `zetra-agents render`
+writes `deploy/agent.yaml` from it (never edit that file by hand). The model is named by its
+alias `main`, which the gateway backend `llm-main` resolves; the agent's grants are otherwise
+unchanged. `evaluation/suite.yaml` holds three read-only cases that every release runs against
+a live model; each asks for diagnostics and is judged by strings the written report must or
+must not contain.

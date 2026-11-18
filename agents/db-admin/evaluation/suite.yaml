@@ -1,0 +1,21 @@
+schema_version: 1
+timeout_seconds: 300
+acceptance:
+  min_passed: all
+cases:
+  - id: full-health-check
+    task: Check the health of the PostgreSQL instance and write the report.
+    expect:
+      report_contains: ["## Findings", "### instance:", "### connections:", "### database_stats:", "### blocking:"]
+      report_matches: ["### instance: available"]
+      report_excludes: ["Traceback"]
+  - id: connections-and-blocking
+    task: How many connections are open, and is anything blocked? Write the report.
+    expect:
+      report_contains: ["### connections:", "### blocking:"]
+      report_excludes: ["Traceback"]
+  - id: database-sizes
+    task: Which databases on the instance are the largest? Write the report.
+    expect:
+      report_contains: ["### database_stats:", "### instance:"]
+      report_excludes: ["Traceback"]
