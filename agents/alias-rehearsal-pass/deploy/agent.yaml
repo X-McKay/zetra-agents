@@ -1,0 +1,25 @@
+# Written by `zetra-agents render` from agent.yaml; not edited by hand.
+apiVersion: agentplatform.io/v1alpha1
+kind: Agent
+metadata:
+  name: alias-rehearsal-pass
+  namespace: tenant-test
+spec:
+  owner: 4785437+X-McKay@users.noreply.github.com
+  description: Rehearsal agent for moving the fast model alias; passes before and
+    after the move
+  identity:
+    mode: agent
+  capabilities:
+    models:
+    - backend: llm-fast
+      models:
+      - fast
+      budget:
+        tokensPerDay: 200000
+        tokensPerSession: 20000
+    mcp: []
+  runtime:
+    cpu: '1'
+    memory: 1Gi
+    ttlSeconds: 300
