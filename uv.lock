@@ -756,7 +756,7 @@ wheels = [
 
 [[package]]
 name = "zetra-agent-alias-rehearsal-fail"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "agents/alias-rehearsal-fail" }
 dependencies = [
     { name = "agent-runtime" },
@@ -767,7 +767,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-alias-rehearsal-pass"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "agents/alias-rehearsal-pass" }
 dependencies = [
     { name = "agent-runtime" },

@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-alias-rehearsal-fail"
-version = "0.1.0"
+version = "0.1.1"
 description = "Rehearsal agent for moving the fast model alias"
 requires-python = ">=3.12,<3.13"
 # The sandbox SDK; its zetra commit is pinned once in the root pyproject.

@@ -17,7 +17,7 @@ spec:
       - fast
       budget:
         tokensPerDay: 200000
-        tokensPerSession: 20000
+        tokensPerSession: 70000
     mcp: []
   runtime:
     cpu: '1'
