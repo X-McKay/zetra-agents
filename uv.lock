@@ -778,7 +778,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-conformance"
-version = "0.1.0"
+version = "0.1.7"
 source = { virtual = "agents/conformance" }
 dependencies = [
     { name = "agent-runtime" },
@@ -789,7 +789,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-conformance-b"
-version = "0.1.0"
+version = "0.1.2"
 source = { virtual = "agents/conformance-b" }
 dependencies = [
     { name = "agent-runtime" },
@@ -844,7 +844,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-conformance-checkpoint"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "agents/conformance-checkpoint" }
 dependencies = [
     { name = "agent-runtime" },
@@ -855,7 +855,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-conformance-lifecycle"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "agents/conformance-lifecycle" }
 dependencies = [
     { name = "agent-runtime" },
@@ -866,7 +866,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-conformance-performance"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "agents/conformance-performance" }
 dependencies = [
     { name = "agent-runtime" },
@@ -888,7 +888,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-conformance-transport"
-version = "0.1.0"
+version = "0.1.2"
 source = { virtual = "agents/conformance-transport" }
 dependencies = [
     { name = "agent-runtime" },
@@ -910,7 +910,7 @@ requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zet
 
 [[package]]
 name = "zetra-agent-investigator"
-version = "0.1.0"
+version = "0.1.5"
 source = { virtual = "agents/investigator" }
 dependencies = [
     { name = "agent-runtime" },

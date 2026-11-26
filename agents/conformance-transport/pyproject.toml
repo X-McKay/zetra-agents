@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-conformance-transport"
-version = "0.1.0"
+version = "0.1.2"
 description = "Signed deterministic transport fixture (spec T27)"
 requires-python = ">=3.12,<3.13"
 # The sandbox SDK; its zetra commit is pinned once in the root pyproject.

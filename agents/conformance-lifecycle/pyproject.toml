@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-conformance-lifecycle"
-version = "0.1.0"
+version = "0.1.1"
 description = "Signed adversarial wire-lifecycle fixture (spec T25)"
 requires-python = ">=3.12,<3.13"
 # The sandbox SDK; its zetra commit is pinned once in the root pyproject.
