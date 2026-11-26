@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-conformance"
-version = "0.1.0"
+version = "0.1.7"
 description = "Conformance test agent for the Agent Runtime Platform (spec 15.1)"
 requires-python = ">=3.12,<3.13"
 # The sandbox SDK; its zetra commit is pinned once in the root pyproject.

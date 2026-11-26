@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-investigator"
-version = "0.1.0"
+version = "0.1.5"
 description = "Read-only Kubernetes investigator for the Agent Runtime Platform"
 requires-python = ">=3.12,<3.13"
 # The sandbox SDK; its zetra commit is pinned once in the root pyproject.

@@ -1,6 +1,6 @@
 [project]
 name = "zetra-agent-conformance-performance"
-version = "0.1.0"
+version = "0.1.1"
 description = "Signed deterministic performance fixture (spec T29)"
 requires-python = ">=3.12,<3.13"
 # The sandbox SDK; its zetra commit is pinned once in the root pyproject.
