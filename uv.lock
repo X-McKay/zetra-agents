@@ -26,7 +26,7 @@ members = [
 [[package]]
 name = "agent-platform-contracts"
 version = "0.1.0"
-source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=589ec5c8b7098292fb995700d896dbe9230b38b9#589ec5c8b7098292fb995700d896dbe9230b38b9" }
+source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703#d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }
 dependencies = [
     { name = "pyyaml" },
 ]
@@ -34,7 +34,7 @@ dependencies = [
 [[package]]
 name = "agent-runtime"
 version = "0.1.0"
-source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9#589ec5c8b7098292fb995700d896dbe9230b38b9" }
+source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703#d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }
 dependencies = [
     { name = "httpx" },
     { name = "mcp" },
@@ -60,11 +60,11 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "agent-platform-contracts", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" },
+    { name = "agent-platform-contracts", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fcontracts&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" },
     { name = "pytest", specifier = "==9.2.0" },
     { name = "pytest-asyncio", specifier = "==1.4.1" },
     { name = "ruff", specifier = "==0.17.3" },
-    { name = "zetra-agents", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-tools&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" },
+    { name = "zetra-agents", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-tools&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" },
 ]
 
 [[package]]
@@ -763,7 +763,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-alias-rehearsal-pass"
@@ -774,7 +774,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance"
@@ -785,7 +785,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-b"
@@ -796,7 +796,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-budget-day"
@@ -807,7 +807,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-budget-day-retry"
@@ -818,7 +818,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-budget-day-retry2"
@@ -829,7 +829,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-budget-session"
@@ -840,7 +840,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-checkpoint"
@@ -851,7 +851,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-lifecycle"
@@ -862,7 +862,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-performance"
@@ -873,7 +873,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-protocol"
@@ -884,7 +884,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-conformance-transport"
@@ -895,7 +895,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-db-admin"
@@ -906,7 +906,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-investigator"
@@ -917,7 +917,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agent-skill-rehearsal"
@@ -928,12 +928,12 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=589ec5c8b7098292fb995700d896dbe9230b38b9" }]
+requires-dist = [{ name = "agent-runtime", git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-runtime&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }]
 
 [[package]]
 name = "zetra-agents"
 version = "0.1.0"
-source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-tools&rev=589ec5c8b7098292fb995700d896dbe9230b38b9#589ec5c8b7098292fb995700d896dbe9230b38b9" }
+source = { git = "https://github.com/X-McKay/zetra.git?subdirectory=platform%2Fagent-tools&rev=d8f8ef3d9d14eca63ffaeb29933b6a978fe26703#d8f8ef3d9d14eca63ffaeb29933b6a978fe26703" }
 dependencies = [
     { name = "agent-platform-contracts" },
     { name = "pyyaml" },
