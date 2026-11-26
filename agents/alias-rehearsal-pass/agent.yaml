@@ -15,5 +15,7 @@ requires:
   description: Rehearsal agent for moving the fast model alias; passes before and after the move
   tenant: tenant-test
   identity: {mode: agent}
-  budget: {tokensPerDay: 200000, tokensPerSession: 20000}
+  # The gateway reserves llm-fast's whole context, 32768 tokens, for each call; a budget
+  # below that admits none. Kept equal to alias-rehearsal-fail, which needs two at once.
+  budget: {tokensPerDay: 200000, tokensPerSession: 70000}
   runtime: {cpu: "1", memory: 1Gi, ttlSeconds: 300}
