@@ -3,11 +3,10 @@
 This image intentionally overrides its installed `agent_runtime.step` only. The
 unmodified SDK is preserved for standard manifest/factory validation. Image builds
 exercise the installed override and the normal CI contract; production runtime code
-is unchanged. Source and verification code must remain identical across the four
+is unchanged. Source and verification code must remain identical across the two
 budget identities. Each identity has its own manifest, signed release and budget.
 
-`conformance-budget-day` and the fixed `conformance-budget-day-retry` and
-`conformance-budget-day-retry2` each have
+`conformance-budget-day` has
 exactly 2000 tokens/day; `conformance-budget-session`
 has exactly 1000 tokens/session. Both can call only llm-budget-conformance model
 conformance-byte-v1, whose server enforces input<=200/output<=100/total<=300 tokens.
@@ -29,9 +28,10 @@ owns applied Agent/AgentRelease, approval, key material, policies and test Jobs;
 repository does not approve or apply releases. See Zetra's budget conformance
 playbook for harness flags and trusted observation requirements.
 
-The retry identity uses its own explicitly selected ledger after a failed daily
-run. It does not reset or alter the original identity's ledger, limits or evidence,
-and it is never generated automatically. It needs its own signed unapproved
-release and exact gateway/backend/observer authorization before a root-approved
-exclusive run. Missing baseline, late replacement or any unexpected HTTP status
-still fails.
+Two retry identities, `conformance-budget-day-retry` and
+`conformance-budget-day-retry2`, were released on 2026-11-06 for repeats on the day
+the daily ledger was spent. They were retired on 2026-11-27: their source is removed
+from this repository, their tags and releases remain, and Kubani keeps both Agents
+switched off as the record. A daily ledger cannot be reset, so a repeat on the same
+day needs a new identity with its own signed release and exact
+gateway/backend/observer authorization; none is generated automatically.
